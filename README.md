@@ -2,6 +2,8 @@
 
 **Your next great moment is already in there.**
 
+Public source: https://github.com/jaydenpiao/cliplane · Apache-2.0.
+
 A creator-controlled, rights-aware clipping studio for authorized gameplay and stream
 recordings. Built from the supplied research report, following its first-iteration
 scope: upload → probe → durable analysis → ranked moments → edit → review → render → download.
@@ -14,14 +16,21 @@ synthetic artwork and tones, clearly labelled as samples; it contains no GTA foo
 
 See [verified results and review notes](docs/verification.md) for the tested checkpoint.
 
+[Working demo](docs/demos/cliplane-demo.mp4) · [Agent handoff](docs/context/current.md) · [Issue board](docs/project/board.md)
+
+Implementation is under review in [PR #31](https://github.com/jaydenpiao/cliplane/pull/31).
+Use the [feat/vertical-mvp branch](https://github.com/jaydenpiao/cliplane/tree/feat/vertical-mvp) until merged.
+
 ## Run it
 
-Requires **Node.js 22+**, **Python 3.12+**, **FFmpeg/ffprobe with libx264 and drawtext**,
+Requires **Node.js 22.12+**, **Python 3.12+**, **FFmpeg/ffprobe with libx264 and drawtext**,
 and **Docker Compose** (or your own PostgreSQL 17+ database). Linux/macOS are supported;
 use WSL2 on Windows. Worker cancellation uses POSIX process groups.
 The complete quality suite also uses uv for Python tooling.
 
 ```sh
+git clone --branch feat/vertical-mvp https://github.com/jaydenpiao/cliplane.git
+cd cliplane
 npm ci
 cp .env.example .env
 npm run db:up

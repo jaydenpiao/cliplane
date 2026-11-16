@@ -1,10 +1,11 @@
-## Problem and resulting behavior
+## Change
 
-## Validation
+State the trigger and resulting behavior. Link the issue.
 
-- Commands run and results:
-- Media/tenant/rights edge cases:
+## Verification
 
-## Limits and follow-up
+Commands/results and material risks.
 
-## Issue
+- [ ] Relevant tests and current CI pass
+- [ ] Security/rights boundaries reviewed
+- [ ] Context, issue state and affected docs updated
