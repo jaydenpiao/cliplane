@@ -1,0 +1,58 @@
+{
+  "name": "cliplane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A creator-controlled, rights-aware gameplay clipping studio",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "tsx watch apps/api/src/main.ts",
+    "dev:web": "next dev apps/web --hostname 0.0.0.0 --port 3000",
+    "build": "next build apps/web",
+    "start:api": "tsx apps/api/src/main.ts",
+    "start:web": "next start apps/web --hostname 0.0.0.0 --port 3000",
+    "db:up": "docker compose -f infra/compose.yml up -d --wait postgres",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "seed": "tsx scripts/seed.ts",
+    "test": "vitest run",
+    "test:media": "python -m unittest discover -s workers/media/tests -v",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:media && npm run check:python && npm run build",
+    "evaluate": "python workers/media/evaluate.py packages/test-fixtures/ranking-labels.json",
+    "test:e2e": "playwright test",
+    "check:python": "uv run --group dev ruff check workers && uv run --group dev ruff format --check workers && uv run --group dev mypy workers/media/pipeline.py workers/media/evaluate.py"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.5",
+    "@fastify/multipart": "10.1.8",
+    "@fastify/rate-limit": "11.2.2",
+    "dotenv": "18.0.10",
+    "fastify": "5.12.8",
+    "geist": "1.9.2",
+    "lucide-react": "1.73.0",
+    "next": "16.4.6",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@biomejs/biome": "2.6.8",
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,479 @@
+{
+  "repository": "jaydenpiao/cliplane",
+  "public": true,
+  "pr": {
+    "number": 31,
+    "url": "https://github.com/jaydenpiao/cliplane/pull/31",
+    "draft": true
+  },
+  "milestones": {
+    "Validation & Rights": {
+      "number": 1,
+      "url": "https://github.com/jaydenpiao/cliplane/milestone/1"
+    },
+    "Vertical MVP": {
+      "number": 2,
+      "url": "https://github.com/jaydenpiao/cliplane/milestone/2"
+    },
+    "Publishing Beta": {
+      "number": 3,
+      "url": "https://github.com/jaydenpiao/cliplane/milestone/3"
+    },
+    "Open Beta": {
+      "number": 4,
+      "url": "https://github.com/jaydenpiao/cliplane/milestone/4"
+    }
+  },
+  "issues": [
+    {
+      "number": 1,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/1"
+    },
+    {
+      "id": "V1",
+      "number": 2,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/2",
+      "title": "[V1] Isolate native media jobs with per-job filesystem and resource limits",
+      "milestone": "Vertical MVP",
+      "labels": [
+        "area:infra",
+        "area:security",
+        "type:feature",
+        "priority:p0",
+        "risk:privacy",
+        "size:L",
+        "status:ready"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "V2",
+      "number": 3,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/3",
+      "title": "[V2] Add resumable S3-compatible direct uploads",
+      "milestone": "Vertical MVP",
+      "labels": [
+        "area:ingest",
+        "area:infra",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "V3",
+      "number": 4,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/4",
+      "title": "[V3] Add pluggable timestamped transcription with a local default",
+      "milestone": "Vertical MVP",
+      "labels": ["area:detection", "type:feature", "priority:p1", "risk:privacy", "size:L", "status:backlog"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "V4",
+      "number": 5,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/5",
+      "title": "[V4] Evaluate VAD and shortlisted semantic ranking against the baseline",
+      "milestone": "Vertical MVP",
+      "labels": ["area:detection", "type:feature", "priority:p1", "risk:privacy", "size:L", "status:backlog"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "V5",
+      "number": 6,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/6",
+      "title": "[V5] Extend edit plans with templates, tracked crops, overlays and audio stems",
+      "milestone": "Vertical MVP",
+      "labels": [
+        "area:web",
+        "area:render",
+        "type:feature",
+        "priority:p1",
+        "risk:copyright",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "V6",
+      "number": 7,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/7",
+      "title": "[V6] Add per-span content-risk signals without granting rights clearance",
+      "milestone": "Vertical MVP",
+      "labels": [
+        "area:rights",
+        "area:detection",
+        "type:feature",
+        "priority:p1",
+        "risk:copyright",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "V7",
+      "number": 8,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/8",
+      "title": "[V7] Add account recovery, export/deletion and workspace roles",
+      "milestone": "Vertical MVP",
+      "labels": [
+        "area:security",
+        "area:web",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P1",
+      "number": 9,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/9",
+      "title": "[P1] Ingest authorized Twitch broadcaster/editor media through official APIs",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:ingest",
+        "type:feature",
+        "priority:p1",
+        "risk:platform",
+        "risk:copyright",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P2",
+      "number": 10,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/10",
+      "title": "[P2] Persist publication lifecycle and exact approval provenance",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:publishing",
+        "area:rights",
+        "type:feature",
+        "priority:p1",
+        "risk:platform",
+        "risk:copyright",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P3",
+      "number": 11,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/11",
+      "title": "[P3] Implement one official Buffer or YouTube publishing adapter",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:publishing",
+        "area:security",
+        "type:feature",
+        "priority:p1",
+        "risk:platform",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P4",
+      "number": 12,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/12",
+      "title": "[P4] Add TikTok draft and creator-consent workflow",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:publishing",
+        "area:web",
+        "type:feature",
+        "priority:p1",
+        "risk:platform",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P5",
+      "number": 13,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/13",
+      "title": "[P5] Synchronize provider metrics without inventing unavailable values",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:publishing",
+        "type:feature",
+        "priority:p1",
+        "risk:platform",
+        "risk:privacy",
+        "size:M",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P6",
+      "number": 14,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/14",
+      "title": "[P6] Verify signed webhooks and support OAuth rotation/revocation",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:security",
+        "area:publishing",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "risk:platform",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "P7",
+      "number": 15,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/15",
+      "title": "[P7] Import creator-owned storage exports and watched-folder uploads",
+      "milestone": "Publishing Beta",
+      "labels": [
+        "area:ingest",
+        "type:feature",
+        "priority:p2",
+        "risk:privacy",
+        "risk:platform",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O1",
+      "number": 16,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/16",
+      "title": "[O1] Add explicit usage-based plans, quotas and signed billing webhooks",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:infra",
+        "area:web",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O2",
+      "number": 17,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/17",
+      "title": "[O2] Add authorized chat signals and evaluated game detector plugins",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:detection",
+        "type:feature",
+        "priority:p1",
+        "risk:platform",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O3",
+      "number": 18,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/18",
+      "title": "[O3] Validate creator-personalized ranking using sufficient labelled data",
+      "milestone": "Open Beta",
+      "labels": ["area:detection", "type:feature", "priority:p1", "risk:privacy", "size:L", "status:backlog"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O4",
+      "number": 19,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/19",
+      "title": "[O4] Add workflow observability and test operational recovery",
+      "milestone": "Open Beta",
+      "labels": ["area:infra", "type:feature", "priority:p1", "risk:privacy", "size:L", "status:backlog"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O5",
+      "number": 20,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/20",
+      "title": "[O5] Replace legal drafts with operator-reviewed privacy, terms and DMCA procedures",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:rights",
+        "type:docs",
+        "priority:p1",
+        "risk:copyright",
+        "risk:privacy",
+        "risk:platform",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O6",
+      "number": 21,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/21",
+      "title": "[O6] Add scoped API keys, public API and signed webhooks",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:infra",
+        "area:security",
+        "type:feature",
+        "priority:p2",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O7",
+      "number": 22,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/22",
+      "title": "[O7] Configure supported repository security checks and SBOM/license reporting",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:infra",
+        "area:security",
+        "type:feature",
+        "priority:p2",
+        "risk:privacy",
+        "size:M",
+        "status:blocked"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O8",
+      "number": 23,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/23",
+      "title": "[O8] Preserve immutable rights-assessment snapshots for publication history",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:rights",
+        "area:security",
+        "type:feature",
+        "priority:p1",
+        "risk:copyright",
+        "risk:privacy",
+        "size:M",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "O9",
+      "number": 24,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/24",
+      "title": "[O9] Display configured upload and retention limits in the studio",
+      "milestone": "Open Beta",
+      "labels": ["area:web", "type:feature", "priority:p2", "risk:privacy", "size:S", "status:backlog"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "G1",
+      "number": 25,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/25",
+      "title": "[G1] Define code ownership and evidence-based pull request review",
+      "milestone": "Vertical MVP",
+      "labels": ["area:infra", "area:security", "type:docs", "priority:p1", "size:M", "status:in-review"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "G2",
+      "number": 26,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/26",
+      "title": "[G2] Close dependency and secret-scan coverage gaps with a triage policy",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:infra",
+        "area:security",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "size:M",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "G3",
+      "number": 27,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/27",
+      "title": "[G3] Separate and validate staging and production configuration",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:infra",
+        "area:security",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "size:M",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "G4",
+      "number": 28,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/28",
+      "title": "[G4] Add production-mode container smoke tests for release candidates",
+      "milestone": "Open Beta",
+      "labels": [
+        "area:infra",
+        "area:web",
+        "area:security",
+        "type:feature",
+        "priority:p1",
+        "risk:privacy",
+        "size:L",
+        "status:backlog"
+      ],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "G5",
+      "number": 29,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/29",
+      "title": "[G5] Establish accessibility and cross-browser failure-flow QA gates",
+      "milestone": "Open Beta",
+      "labels": ["area:web", "type:feature", "priority:p1", "size:M", "status:backlog"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "G6",
+      "number": 30,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/30",
+      "title": "[G6] Define board workflow, milestone exit criteria and release ownership",
+      "milestone": "Vertical MVP",
+      "labels": ["area:infra", "type:docs", "priority:p1", "size:M", "status:in-review"],
+      "author": "jaydenpiao"
+    },
+    {
+      "id": "DEMO",
+      "number": 32,
+      "url": "https://github.com/jaydenpiao/cliplane/issues/32",
+      "state": "in-review"
+    }
+  ],
+  "project": {
+    "url": null,
+    "state": "blocked",
+    "reason": "createProjectV2: Resource not accessible by integration"
+  }
+}

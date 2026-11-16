@@ -1,0 +1,69 @@
+[
+  {
+    "id": "G1",
+    "title": "[G1] Define code ownership and evidence-based pull request review",
+    "body": "Define code ownership and review requirements.\n\n- [ ] Add CODEOWNERS and a short PR/review policy.\n- [ ] Require verification evidence and review of tenant, rights, media and retry boundaries.\n- [ ] Document sole-maintainer review and emergency exceptions. Track remote enforcement in O7.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:infra", "area:security", "type:docs", "priority:p1", "size:M", "status:in-review"]
+  },
+  {
+    "id": "G2",
+    "title": "[G2] Close dependency and secret-scan coverage gaps with a triage policy",
+    "body": "Extend security checks beyond npm audit.\n\n- [ ] Scan locked Python dependencies, the built image and repository history for secrets.\n- [ ] Pin scanner versions and retain redacted, commit-bound results.\n- [ ] Test harmless detection fixtures and scanner failures; define triage owners and expiring exceptions. Keep hosted settings in O7.",
+    "milestone": "Open Beta",
+    "labels": [
+      "area:infra",
+      "area:security",
+      "type:feature",
+      "priority:p1",
+      "risk:privacy",
+      "size:M",
+      "status:backlog"
+    ]
+  },
+  {
+    "id": "G3",
+    "title": "[G3] Separate and validate staging and production configuration",
+    "body": "Separate staging and production configuration.\n\n- [ ] Add secret-free environment examples and secure configuration validation.\n- [ ] Use separate databases, storage and service identities; staging uses synthetic data.\n- [ ] Test insecure defaults, shared-resource mistakes and missing settings without logging secrets. Keep decoder isolation in V1 and storage in V2.",
+    "milestone": "Open Beta",
+    "labels": [
+      "area:infra",
+      "area:security",
+      "type:feature",
+      "priority:p1",
+      "risk:privacy",
+      "size:M",
+      "status:backlog"
+    ]
+  },
+  {
+    "id": "G4",
+    "title": "[G4] Add production-mode container smoke tests for release candidates",
+    "body": "Test the production start path on the candidate image.\n\n- [ ] Run the image with disposable database/storage and test HTTPS.\n- [ ] Exercise upload, review, render, download, deletion and restart recovery.\n- [ ] Verify tenancy, origin/cookie controls and disabled demo access; retain commit/image-bound evidence. Keep restore/rollback drills in O4.",
+    "milestone": "Open Beta",
+    "labels": [
+      "area:infra",
+      "area:web",
+      "area:security",
+      "type:feature",
+      "priority:p1",
+      "risk:privacy",
+      "size:L",
+      "status:backlog"
+    ]
+  },
+  {
+    "id": "G5",
+    "title": "[G5] Establish accessibility and cross-browser failure-flow QA gates",
+    "body": "Extend browser and accessibility QA.\n\n- [ ] Test the critical workflow in Chromium and another supported engine.\n- [ ] Check keyboard navigation, dialog focus, errors and status announcements against applicable WCAG 2.2 AA criteria.\n- [ ] Cover interrupted uploads, session expiry, stale edits, retry and cleanup failures; link defects to tested versions.",
+    "milestone": "Open Beta",
+    "labels": ["area:web", "type:feature", "priority:p1", "size:M", "status:backlog"]
+  },
+  {
+    "id": "G6",
+    "title": "[G6] Define board workflow, milestone exit criteria and release ownership",
+    "body": "Define product workflow and release gates.\n\n- [ ] Document board states, WIP limits, owners, priorities, dependencies and acceptance criteria.\n- [ ] Define local, staging and public-beta gates with evidence and decision ownership.\n- [ ] Maintain an issue-based board when Projects access is unavailable; record real CI/settings and permission gaps.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:infra", "type:docs", "priority:p1", "size:M", "status:in-review"]
+  }
+]

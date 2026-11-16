@@ -1,0 +1,19 @@
+name: cliplane
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: cliplane
+      POSTGRES_PASSWORD: cliplane_local
+      POSTGRES_DB: cliplane
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cliplane -d cliplane"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+volumes:
+  postgres_data:

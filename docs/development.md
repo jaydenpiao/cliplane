@@ -1,0 +1,60 @@
+# Development reference
+
+## Commands
+
+Use Node 24 (supported minimum 22.12), Python 3.12, uv, FFmpeg/ffprobe and PostgreSQL 17.
+Lockfiles pin project dependencies. Do not print environment values or credentials.
+
+| Task                            | Command                                              |
+| ------------------------------- | ---------------------------------------------------- |
+| Install JS/Python tooling       | npm ci; uv sync --locked --group dev                 |
+| Start local DB                  | npm run db:up                                        |
+| Apply/check migrations          | npm run db:migrate                                   |
+| Create original sample media    | npm run seed                                         |
+| Start API and studio            | npm run dev                                          |
+| Full quality gate               | npm run check                                        |
+| Focused API/domain tests        | npm test -- tests/api.test.ts                        |
+| Media fixtures / Python quality | npm run test:media; npm run check:python             |
+| Real browser workflow           | npm run test:e2e                                     |
+| Offline ranking evaluation      | npm run evaluate                                     |
+| Dependency audit                | npm audit --audit-level=high                         |
+| Container build                 | docker build -f infra/Dockerfile -t cliplane:local . |
+| Repo / issue / PR / checks      | gh repo view; gh issue list; gh pr view; gh run list |
+
+Do not run a Next production build while filming a development server using the same
+.next directory. Stop/restart only task-owned processes and verify /api/health.
+
+## Tools, skills and plugins
+
+Inspect the current runtime catalog; availability changes between sessions.
+Use GitHub connectors for supported operations and authenticated Git/gh for the rest.
+The GitHub account is jaydenpiao; verify `gh api user --jq .login` and local Git identity.
+Expected commit email: 71306047+jaydenpiao@users.noreply.github.com.
+Never embed credentials in remotes, files or logs.
+
+Use installed debugging, testing, verification and review skills when relevant.
+Use the environment/browser skill for recordings, writing-style guidance for posts,
+and plugin-management discovery when a required external capability is missing.
+Read full skill guidance only for the current task. Project conventions belong in
+AGENTS.md; add a reusable skill only for a repeated gap and validate it first.
+
+No new global plugin or skill is required for the existing local workflow. The current
+stack already has a test runner, browser recorder and FFmpeg editor. Research a new
+tool when an issue needs it; document capability, license, cost, permissions and fit.
+Prefer documented official APIs. Never replace missing access with scraping or cookies.
+
+Keep personal account information, drafts and distribution plans outside this public
+repository. Product integrations belong in documented provider modules.
+
+## Increment and checkpoint discipline
+
+One active implementation issue; one coherent commit/PR scope. Keep research focused
+and reuse accepted decisions. Review material boundaries once, fix verified defects,
+and stop repeating unchanged passing checks. Record exact next steps before a limit,
+context reset or pause. Context is a resumable record, not a transcript.
+
+The user requests autonomous progress within the authorized project scope. Continue
+reversible implementation and checks; report actual external permission/billing
+boundaries. Public source is authorized under Apache-2.0. Production hosting and paid
+services are not configured. External publication needs explicit authorization and
+verified access; personal distribution plans do not belong in this repository.

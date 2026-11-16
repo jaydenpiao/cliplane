@@ -31,11 +31,11 @@ packages/db/migrations/001_initial.sql, workers/media/{pipeline.py,test files}.
 Produces: validated EditPlan, approval blockers, deterministic candidate generation,
 PostgreSQL schema, Python probe/analyze/render JSON contracts.
 
-- [ ] Write domain boundary, music/embargo and dedup tests; run to see failure.
-- [ ] Implement versioned domain schemas and actual SQL migrations.
-- [ ] Write Python structural render/probe tests; run to see failure.
-- [ ] Implement bounded local-only FFmpeg probe/analysis/render.
-- [ ] Verify domain and media tests; commit.
+- [x] Write domain boundary, music/embargo and dedup tests; run to see failure.
+- [x] Implement versioned domain schemas and actual SQL migrations.
+- [x] Write Python structural render/probe tests; run to see failure.
+- [x] Implement bounded local-only FFmpeg probe/analysis/render.
+- [x] Verify domain and media tests; commit.
 
 ### Task 2: Authorized ingest, queue and review API
 
@@ -43,11 +43,11 @@ Files: apps/api/src/{config,auth,storage,media,jobs,server,main}.ts,
 tests/api.test.ts. Consumes domain and Python contracts from Task 1.
 Produces authenticated /api/sources, /api/candidates, /api/events and /api/dashboard.
 
-- [ ] Write real Postgres API tests for auth, upload, isolation, approval invalidation,
+- [x] Write real Postgres API tests for auth, upload, isolation, approval invalidation,
       invalid media, range requests, job retry and deletion; observe failure.
-- [ ] Implement source provenance, streaming upload, sessions, durable leased jobs,
+- [x] Implement source provenance, streaming upload, sessions, durable leased jobs,
       review/render revisions, retention and audit events.
-- [ ] Verify integration suite and static types; commit.
+- [x] Verify integration suite and static types; commit.
 
 ### Task 3: Studio UI and usable sample workflow
 
@@ -56,18 +56,18 @@ scripts/{dev,seed,migrate}, infra/_.
 Consumes API from Task 2. Produces responsive studio with upload, queue, editor,
 rights review, export, source library and insights.
 
-- [ ] Build loading/error/empty states and accessible form controls.
-- [ ] Add clearly labelled synthetic sample media with real persisted candidates.
-- [ ] Verify Next.js build, API workflow and responsive styles; commit.
+- [x] Build loading/error/empty states and accessible form controls.
+- [x] Add clearly labelled synthetic sample media with real persisted candidates.
+- [x] Verify Next.js build, API workflow and responsive styles; commit.
 
 ### Task 4: Repository delivery and independent review
 
 Files: docs/{backlog,security,legal,runbooks}, .github/workflows, README, LICENSE.
 
-- [ ] Document setup, limitations, ownership model, adapters and exact next issues.
-- [ ] Add CI for real code: format/lint/types/tests/media/build/migrations/security.
-- [ ] Run full quality checks, dependency audit and fresh independent code review.
-- [ ] Fix material findings, rerun affected checks, package source and verification.
+- [x] Document setup, limitations, ownership model, adapters and exact next issues.
+- [x] Add CI for real code: format/lint/types/tests/media/build/migrations/security.
+- [x] Run full quality checks, dependency audit and fresh independent code review.
+- [x] Fix material findings, rerun affected checks, package source and verification.
 
 Execution: user requested autonomous implementation of the supplied report. Local
 construction and verification proceed without an additional planning approval gate.
