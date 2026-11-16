@@ -14,7 +14,8 @@ provider_id=staging
 account_id=cliplane-ci-discovery
 account_email="$account_id@$project_id.iam.gserviceaccount.com"
 mapping='google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id'
-condition="assertion.repository_id == '1459551943' && assertion.repository_owner_id == '71306047' && assertion.ref == 'refs/heads/main' && assertion.sub == 'repo:jaydenpiao/cliplane:environment:staging'"
+# Pin GitHub's immutable subject alongside independent repository/owner/ref checks.
+condition="assertion.repository_id == '1459551943' && assertion.repository_owner_id == '71306047' && assertion.ref == 'refs/heads/main' && assertion.sub == 'repo:jaydenpiao@71306047/cliplane@1459551943:environment:staging'"
 
 run() {
   if [[ "$mode" == --apply ]]; then

@@ -139,3 +139,20 @@ References: [Google federation](https://docs.cloud.google.com/iam/docs/workload-
 - https://github.com/actions/checkout/releases/tag/v7.0.1 (pinned; credential persistence off)
 - https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event
 - https://docs.cloud.google.com/resource-manager/reference/rest/v1/projects/testIamPermissions
+
+## Immutable GitHub subjects
+
+The first live check failed with unauthorized_client / attribute condition rejection.
+The repository OIDC settings report use_immutable_subject=true and the prefix
+`repo:jaydenpiao@71306047/cliplane@1459551943`. The original provider condition expected
+GitHub's older name-only subject. New repositories use immutable IDs by default.
+
+The corrected bootstrap pins:
+`repo:jaydenpiao@71306047/cliplane@1459551943:environment:staging`, while retaining
+independent repository ID, owner ID and refs/heads/main checks. It does not change
+IAM roles or disable GitHub immutable subjects. Existing providers need the owner to
+pull the corrected script and rerun --apply (or apply the exact reviewed condition).
+A successful subsequent Cloud discovery run is required before claiming verified access.
+
+References: https://docs.github.com/en/actions/reference/security/oidc and
+https://docs.github.com/en/rest/actions/oidc .
