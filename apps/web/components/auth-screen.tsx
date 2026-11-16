@@ -26,19 +26,17 @@ export function AuthScreen({ onReady }: { onReady: () => void }) {
         <Brand />
         <div>
           <span className="eyebrow">
-            <span className="live-dot" /> MADE FOR THE MOMENT
+            <span className="live-dot" /> THE CREATOR’S CUT
           </span>
           <h1>
-            You play.
+            More than <br />a recording.
             <br />
-            We find the
-            <br />
-            <em>good stuff.</em>
+            <em>Your next story.</em>
           </h1>
           <p>
-            Your next great clip is already in your stream.
+            Turn long recordings into moments worth watching.
             <br />
-            Bring it to the surface, make it yours, and share it on your terms.
+            Find, refine and export. Every creative decision stays yours.
           </p>
           <div className="auth-points">
             <span>
@@ -56,7 +54,7 @@ export function AuthScreen({ onReady }: { onReady: () => void }) {
       <section className="auth-panel">
         <div className="auth-card">
           <span className="tag coral">YOUR CREATOR WORKSPACE</span>
-          <h2>{mode === "login" ? "Good to have you here." : "Make room for great moments."}</h2>
+          <h2>{mode === "login" ? "Welcome to your studio." : "Create your studio."}</h2>
           <p>
             {mode === "login"
               ? "Sign in to pick up where you left off."
@@ -114,7 +112,7 @@ export function AuthScreen({ onReady }: { onReady: () => void }) {
             </button>
           </form>
           <div className="auth-switch">
-            {mode === "login" ? "New around here?" : "Already have a workspace?"}{" "}
+            {mode === "login" ? "New to Cliplane?" : "Already have a workspace?"}{" "}
             <button
               type="button"
               onClick={() => {

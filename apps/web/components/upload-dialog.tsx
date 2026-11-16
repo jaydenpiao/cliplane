@@ -1,6 +1,7 @@
 "use client";
 import { Check, FileVideo, LoaderCircle, ShieldCheck, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { useDialog } from "../lib/use-dialog";
 
 export function UploadDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null),
@@ -8,6 +9,7 @@ export function UploadDialog({ onClose, onDone }: { onClose: () => void; onDone:
     [error, setError] = useState(""),
     [progress, setProgress] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const dialog = useDialog(onClose, busy);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!file) {
@@ -58,7 +60,14 @@ export function UploadDialog({ onClose, onDone }: { onClose: () => void; onDone:
   }
   return (
     <div className="modal-backdrop">
-      <section className="modal upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+      <section
+        ref={dialog}
+        tabIndex={-1}
+        className="modal upload-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-title"
+      >
         <header className="modal-header">
           <div>
             <span className="eyebrow">IT STARTS WITH YOUR STREAM</span>
@@ -95,6 +104,7 @@ export function UploadDialog({ onClose, onDone }: { onClose: () => void; onDone:
             </span>
           </button>
           <input
+            aria-label="Recording file"
             className="visually-hidden"
             ref={fileInput}
             type="file"

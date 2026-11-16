@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Bell,
   Check,
-  CheckCheck,
   ChevronDown,
   ChevronRight,
   CircleHelp,
@@ -23,7 +22,6 @@ import {
   Search,
   Settings2,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   WandSparkles,
   X,
@@ -34,9 +32,10 @@ import { Brand } from "../components/brand";
 import { EditorDialog } from "../components/editor-dialog";
 import { UploadDialog } from "../components/upload-dialog";
 import { api, date, duration, type Moment } from "../lib/api";
+import { useDialog } from "../lib/use-dialog";
 
 const navigation = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "overview", label: "Studio", icon: LayoutDashboard },
   { id: "moments", label: "My moments", icon: Clapperboard },
   { id: "recordings", label: "Recordings", icon: FolderOpen },
   { id: "insights", label: "Insights", icon: TrendingUp },
@@ -59,6 +58,7 @@ export default function Studio() {
     [error, setError] = useState(""),
     [mobileMenu, setMobileMenu] = useState(false),
     [info, setInfo] = useState(false);
+  const helpDialog = useDialog(() => setInfo(false), false, info);
   const refresh = useCallback(async () => {
     const [d, s, m, j, e] = await Promise.all([
       api("/dashboard"),
@@ -205,23 +205,17 @@ export default function Studio() {
         </nav>
         <div className="sidebar-bottom">
           <div className="studio-note">
-            <span className="note-symbol">✳</span>
-            <strong>
-              More play.
-              <br />
-              Less post-production.
-            </strong>
-            <p>
-              Make something worth sharing.
-              <br />
-              We’ll help with the busywork.
-            </p>
-            <button type="button" onClick={() => setUploading(true)}>
-              Bring in a stream <ArrowRight size={14} />
+            <span className="studio-note-icon">
+              <ShieldCheck size={18} />
+            </span>
+            <strong>You're in the director’s chair.</strong>
+            <p>Every export starts with your approval.</p>
+            <button type="button" onClick={() => navigate("rights")}>
+              Review permissions <ArrowRight size={14} />
             </button>
           </div>
           <button type="button" className="sidebar-help" onClick={() => setInfo(true)}>
-            <CircleHelp size={17} /> A little help <ExternalLink size={13} />
+            <CircleHelp size={17} /> Help & workflow <ExternalLink size={13} />
           </button>
           <button type="button" className="user-profile" onClick={() => navigate("settings")}>
             <span className="user-avatar">
@@ -251,7 +245,7 @@ export default function Studio() {
               <Menu size={21} />
             </button>
             <span className="breadcrumb">
-              Workspace <ChevronRight size={13} />{" "}
+              Studio <ChevronRight size={13} />{" "}
               <strong>
                 {navigation.find((n) => n.id === view)?.label ||
                   (view === "rights"
@@ -292,123 +286,23 @@ export default function Studio() {
             </div>
           )}
           {view === "overview" && (
-            <>
-              <section className="page-heading">
-                <div>
-                  <span className="eyebrow">A LITTLE LESS EDITING. A LOT MORE CREATING.</span>
-                  <h1>
-                    Your next great moment
-                    <br />
-                    is already in there<span className="coral-text">.</span>
-                  </h1>
-                  <p>Find the good stuff. Make it yours. Give it your final say.</p>
-                </div>
-                <button type="button" className="button primary" onClick={() => setUploading(true)}>
-                  <Plus size={18} /> Upload recording
-                </button>
-              </section>
-              <section className="overview-hero">
-                <div className="hero-copy">
-                  <span className="tag hero-tag">
-                    <span className="live-dot" /> BUILT AROUND YOU
-                  </span>
-                  <h2>
-                    From a long stream
-                    <br />
-                    to a short story.
-                  </h2>
-                  <p>
-                    Let the signals find the promising bits.
-                    <br />
-                    Keep the creative decisions in your hands.
-                  </p>
-                  <button type="button" onClick={() => navigate("moments")}>
-                    Find your next clip <ArrowRight size={17} />
-                  </button>
-                </div>
-                <div className="hero-art">
-                  <div className="orbit orbit-one" />
-                  <div className="orbit orbit-two" />
-                  <div className="floating-frame frame-back">
-                    <div />
-                    <div />
-                    <div />
-                    <div />
-                  </div>
-                  <div className="floating-frame frame-front">
-                    <div className="mini-scene">
-                      <span className="sun" />
-                      <span className="mountain" />
-                      <span className="road" />
-                      <span className="car" />
-                      <span className="palm palm-a" />
-                      <span className="palm palm-b" />
-                      <span className="scene-hud">
-                        REC <i />
-                      </span>
-                    </div>
-                    <div className="mini-frame-meta">
-                      <span className="mini-play">
-                        <PlayIcon />
-                      </span>
-                      <span>
-                        Your kind of moment.<small>Made to be shared.</small>
-                      </span>
-                      <span className="mini-check">
-                        <Check size={15} />
-                      </span>
-                    </div>
-                  </div>
-                  <span className="floating-label">
-                    <Sparkles size={14} /> Good moments, surfaced.
-                  </span>
-                  <span className="hero-spark">✳</span>
-                </div>
-              </section>
-              <div className="stats-grid">
-                <Stat
-                  icon={Film}
-                  label="Recordings"
-                  value={String(stats.sources)}
-                  note={`${Number(stats.source_hours).toFixed(1)} source hours in your studio`}
-                />
-                <Stat
-                  icon={Sparkles}
-                  label="Ready for your eye"
-                  value={String(stats.needs_review)}
-                  note="Moments waiting for a human touch"
-                  tone="coral"
-                />
-                <Stat
-                  icon={CheckCheck}
-                  label="Ready to share"
-                  value={String(stats.rendered)}
-                  note="Approved, rendered & all yours"
-                  tone="green"
-                />
-                <Stat
-                  icon={TrendingUp}
-                  label="Acceptance rate"
-                  value={
-                    stats.accepted + stats.rejected > 0
-                      ? `${Math.round((stats.accepted / (stats.accepted + stats.rejected)) * 100)}%`
-                      : "—"
-                  }
-                  note={
-                    stats.accepted + stats.rejected > 0
-                      ? "From your latest review decisions"
-                      : "Your feedback starts the story"
-                  }
-                />
+            <section className="page-heading studio-heading">
+              <div>
+                <span className="eyebrow">YOUR CREATIVE WORKSPACE</span>
+                <h1>From recording to remarkable.</h1>
+                <p>Find your moment. Shape the story. Make the final call.</p>
               </div>
-            </>
+              <button type="button" className="button primary" onClick={() => setUploading(true)}>
+                <Plus size={18} /> Upload recording
+              </button>
+            </section>
           )}
           {(view === "overview" || view === "moments") && (
             <section className="moments-section">
               {view === "moments" && (
                 <section className="page-heading">
                   <div>
-                    <span className="eyebrow">THE GOOD STUFF, ALL IN ONE PLACE</span>
+                    <span className="eyebrow">YOUR CLIP LIBRARY</span>
                     <h1>
                       Your moments<span className="coral-text">.</span>
                     </h1>
@@ -422,10 +316,12 @@ export default function Studio() {
               <div className="section-heading">
                 <div>
                   <h2>
-                    {view === "overview" ? "A few moments worth your time" : "Moment library"}
+                    {view === "overview" ? "Your shortlist" : "All moments"}
                     <span className="count-pill">{moments.length}</span>
                   </h2>
-                  {view === "overview" && <p>Your signals did the finding. You do the deciding.</p>}
+                  {view === "overview" && (
+                    <p>Promising moments from your recordings, ready for a closer look.</p>
+                  )}
                 </div>
                 {view === "overview" && (
                   <button type="button" className="button text" onClick={() => navigate("moments")}>
@@ -436,9 +332,9 @@ export default function Studio() {
               <div className="filter-row">
                 <div className="filter-tabs">
                   {[
-                    { id: "all", label: "For you" },
+                    { id: "all", label: "All moments" },
                     { id: "needs_review", label: "Needs review" },
-                    { id: "rendered", label: "Ready to share" },
+                    { id: "rendered", label: "Exported" },
                     ...(view === "moments" ? [{ id: "rejected", label: "Rejected" }] : []),
                   ].map((item) => (
                     <button
@@ -511,7 +407,7 @@ export default function Studio() {
             <div className="bottom-grid">
               <section className="recording-section">
                 <div className="section-heading">
-                  <h2>Recently brought in</h2>
+                  <h2>Recent recordings</h2>
                   <button type="button" className="button text" onClick={() => navigate("recordings")}>
                     All recordings <ArrowRight size={15} />
                   </button>
@@ -549,7 +445,7 @@ export default function Studio() {
               </section>
               <section className="permission-note">
                 <ShieldCheck size={22} />
-                <h3>Your work. Your call.</h3>
+                <h3>Your footage. Your final say.</h3>
                 <p>
                   Nothing leaves the studio without your review. Rights, music and creator permission stay
                   part of the process.
@@ -564,7 +460,7 @@ export default function Studio() {
             <>
               <section className="page-heading">
                 <div>
-                  <span className="eyebrow">THE SOURCE OF EVERY STORY</span>
+                  <span className="eyebrow">SOURCE LIBRARY</span>
                   <h1>
                     Your recordings<span className="coral-text">.</span>
                   </h1>
@@ -868,7 +764,7 @@ export default function Studio() {
             <>
               <section className="page-heading">
                 <div>
-                  <span className="eyebrow">YOUR LITTLE CORNER OF THE INTERNET</span>
+                  <span className="eyebrow">WORKSPACE SETTINGS</span>
                   <h1>
                     Your workspace<span className="coral-text">.</span>
                   </h1>
@@ -937,9 +833,9 @@ export default function Studio() {
           )}
           <footer className="workspace-footer">
             <span>
-              <span className="brand-tiny">✳</span> A little less busywork. A little more you.
+              <span className="brand-tiny">✳</span> Cliplane · Creator studio
             </span>
-            <span>Creator-controlled, from start to finish.</span>
+            <span>Open source. Yours to create.</span>
           </footer>
         </main>
       </div>
@@ -957,7 +853,14 @@ export default function Studio() {
       )}
       {info && (
         <div className="modal-backdrop">
-          <section className="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+          <section
+            ref={helpDialog}
+            tabIndex={-1}
+            className="modal help-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="help-title"
+          >
             <button
               type="button"
               className="icon-button close-top"
@@ -997,15 +900,43 @@ export default function Studio() {
 }
 
 function MomentCard({ moment: m, onClick }: { moment: Moment; onClick: () => void }) {
+  const [previewing, setPreviewing] = useState(false);
   const cleared =
     m.rights.gameRights === "authorized" &&
     (m.rights.musicRights !== "unknown" || m.edit_plan.muteAudio) &&
     !m.rights.embargoed;
   return (
     <article className="moment-card">
-      <button type="button" className="moment-image" aria-label={`Review ${m.title}`} onClick={onClick}>
+      <button
+        type="button"
+        className="moment-image"
+        aria-label={`Review ${m.title}`}
+        onClick={onClick}
+        onPointerEnter={(event) => {
+          if (event.pointerType === "mouse" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+            setPreviewing(true);
+        }}
+        onPointerLeave={() => setPreviewing(false)}
+        onBlur={() => setPreviewing(false)}
+      >
         {/* biome-ignore lint/performance/noImgElement: Private authenticated thumbnails bypass the shared optimizer cache. */}
         <img src={`/api/candidates/${m.id}/thumbnail`} alt={`${m.game} recording preview`} loading="lazy" />
+        {previewing && (
+          <video
+            className="card-video"
+            muted
+            autoPlay
+            playsInline
+            preload="none"
+            src={`/api/sources/${m.source_id}/media#t=${m.start_ms / 1000},${m.end_ms / 1000}`}
+            onTimeUpdate={(event) => {
+              if (event.currentTarget.currentTime >= m.end_ms / 1000)
+                event.currentTarget.currentTime = m.start_ms / 1000;
+            }}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+        )}
         <span className="score-tag">
           <span>✳</span> {m.score} <small>signal</small>
         </span>
@@ -1033,7 +964,7 @@ function MomentCard({ moment: m, onClick }: { moment: Moment; onClick: () => voi
         <div className="moment-card-footer">
           <span className={cleared ? "rights-ok" : "rights-pending"}>
             <ShieldCheck size={13} />
-            {cleared ? "Rights reviewed" : "Rights need a look"}
+            {cleared ? "Rights reviewed" : "Review rights"}
           </span>
           <button type="button" onClick={onClick}>
             {m.status === "rendering" ? "Rendering" : m.status === "rendered" ? "View clip" : "Review"}

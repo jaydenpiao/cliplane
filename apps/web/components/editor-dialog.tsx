@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditPlan, RightsAssessment } from "../../../packages/domain/src/index";
 import { approvalBlockers } from "../../../packages/domain/src/index";
 import { api, type Moment, time } from "../lib/api";
+import { useDialog } from "../lib/use-dialog";
 
 const layouts = [
   { id: "blur", name: "Full frame", hint: "Blurred background", icon: Monitor },
@@ -101,9 +102,17 @@ export function EditorDialog({
       };
     });
   }
+  const dialog = useDialog(onClose, !!busy);
   return (
     <div className="modal-backdrop editor-backdrop">
-      <section className="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+      <section
+        ref={dialog}
+        tabIndex={-1}
+        className="editor-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="editor-title"
+      >
         <header className="editor-header">
           <button type="button" className="button text" onClick={onClose} disabled={!!busy}>
             <ChevronLeft size={17} /> Back to moments
@@ -228,12 +237,8 @@ export function EditorDialog({
           </div>
           <div className="editor-controls">
             <div className="editor-title">
-              <span className="eyebrow">MAKE IT YOURS</span>
-              <h2 id="editor-title">
-                One moment.
-                <br />
-                Your point of view.
-              </h2>
+              <span className="eyebrow">THE FINAL CUT</span>
+              <h2 id="editor-title">Shape your moment.</h2>
             </div>
             <div className="tabbar">
               <button type="button" className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")}>

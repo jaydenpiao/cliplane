@@ -140,6 +140,51 @@ afterAll(async () => {
 });
 
 describe("authenticated authorized clipping", () => {
+  it("reserves the sample identity during registration", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        email: "DEMO@cliplane.local",
+        password: "a-good-test-password",
+        name: "Private creator",
+        workspace: "Private studio",
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+  it("demo access requires an explicit seed marker for the exact user and workspace", async () => {
+    const demoUser = randomUUID(),
+      demoWorkspace = randomUUID();
+    await db.query(
+      "INSERT INTO users(id,email,name,password_hash) VALUES($1,'demo@cliplane.local','Unmarked creator','unused')",
+      [demoUser],
+    );
+    await db.query("INSERT INTO workspaces(id,name) VALUES($1,'Unmarked workspace')", [demoWorkspace]);
+    await db.query("INSERT INTO memberships(user_id,workspace_id) VALUES($1,$2)", [demoUser, demoWorkspace]);
+    app.config.demoEnabled = true;
+    try {
+      const denied = await app.inject({ method: "POST", url: "/api/auth/demo" });
+      expect(denied.statusCode).toBe(503);
+      expect(denied.headers["set-cookie"]).toBeUndefined();
+      await db.query(
+        "INSERT INTO audit_events(id,workspace_id,user_id,kind,entity_id) VALUES($1,$2,$3,'demo.seeded',$3)",
+        [randomUUID(), demoWorkspace, demoUser],
+      );
+      const allowed = await app.inject({ method: "POST", url: "/api/auth/demo" });
+      expect(allowed.statusCode).toBe(200);
+      const cookie = String(allowed.headers["set-cookie"]).split(";")[0];
+      const identity = (await app.inject({ url: "/api/me", headers: { cookie } })).json();
+      expect(identity.userId).toBe(demoUser);
+      expect(identity.workspaceId).toBe(demoWorkspace);
+      await db.query("DELETE FROM audit_events WHERE kind='demo.seeded' AND user_id=$1", [demoUser]);
+      expect((await app.inject({ method: "POST", url: "/api/auth/demo" })).statusCode).toBe(503);
+    } finally {
+      app.config.demoEnabled = false;
+    }
+  });
+
   it("requires a session and rejects cross-site mutations", async () => {
     expect((await app.inject({ url: "/api/sources" })).statusCode).toBe(401);
     expect(

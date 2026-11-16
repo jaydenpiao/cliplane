@@ -1,6 +1,6 @@
 # Cliplane
 
-**Your next great moment is already in there.**
+**From recording to remarkable.**
 
 Public source: https://github.com/jaydenpiao/cliplane · Apache-2.0.
 
@@ -10,16 +10,16 @@ scope: upload → probe → durable analysis → ranked moments → edit → rev
 
 This is working local software, not a hosted production service. The interface uses
 real PostgreSQL records and actual Python/FFmpeg processing. The demo contains original
-synthetic artwork and tones, clearly labelled as samples; it contains no GTA footage.
+procedural motion and generated audio, clearly labelled as samples.
 
 ![Cliplane studio](docs/images/studio-desktop.png)
 
 See [verified results and review notes](docs/verification.md) for the tested checkpoint.
 
-[Working demo](docs/demos/cliplane-demo.mp4) · [Agent handoff](docs/context/current.md) · [Issue board](docs/project/board.md)
+[Working demo](docs/demos/cliplane-demo.mp4) · [Agent handoff](docs/context/current.md) · [GitHub Project setup](docs/project/board.md)
 
-Implementation is under review in [PR #31](https://github.com/jaydenpiao/cliplane/pull/31).
-Use the [feat/vertical-mvp branch](https://github.com/jaydenpiao/cliplane/tree/feat/vertical-mvp) until merged.
+Implementation and review evidence: [PR #31](https://github.com/jaydenpiao/cliplane/pull/31).
+See [DESIGN.md](DESIGN.md) for the light studio design and UI tools.
 
 ## Run it
 

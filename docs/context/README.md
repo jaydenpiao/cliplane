@@ -8,7 +8,7 @@ Start with current.md. Treat Git and GitHub as live facts; documents are dated e
 | Behavior and setup                        | ../../README.md                     |
 | Commands, tooling, skills and access      | ../development.md                   |
 | Product scope and milestone acceptance    | ../backlog.md                       |
-| Live tasks and issue board                | ../project/board.md                 |
+| Native GitHub Project setup               | ../project/board.md                 |
 | Review, QA, staging and production gates  | ../project/workflow.md              |
 | Durable decisions                         | ../adr/                             |
 | Architecture                              | ../architecture/overview.md         |

@@ -37,6 +37,7 @@ export function authRoutes(app: App): void {
     { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const body = registerSchema.parse(req.body);
+      if (body.email === "demo@cliplane.local") throw httpError(400, "This email is reserved");
       const userId = randomUUID(),
         workspaceId = randomUUID();
       const hash = await hashPassword(body.password);
@@ -81,7 +82,11 @@ export function authRoutes(app: App): void {
     if (!app.config.demoEnabled) throw httpError(404, "Sample workspace is disabled");
     const user = (
       await app.db.query(
-        "SELECT u.id,m.workspace_id FROM users u JOIN memberships m ON m.user_id=u.id WHERE u.email='demo@cliplane.local'",
+        `SELECT u.id,m.workspace_id FROM users u JOIN memberships m ON m.user_id=u.id
+         WHERE u.email='demo@cliplane.local' AND EXISTS (
+           SELECT 1 FROM audit_events e WHERE e.kind='demo.seeded'
+           AND e.user_id=u.id AND e.entity_id=u.id AND e.workspace_id=m.workspace_id
+         ) ORDER BY m.workspace_id LIMIT 1`,
       )
     )[0];
     if (!user) throw httpError(503, "Run npm run seed to create the sample workspace");
