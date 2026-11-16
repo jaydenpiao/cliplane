@@ -16,11 +16,15 @@ export class Database {
   async query<T extends pg.QueryResultRow = any>(sql: string, params: any[] = []): Promise<T[]> {
     return (await this.pool.query<T>(sql, params)).rows;
   }
-  async transaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  async transaction<T>(fn: (client: pg.PoolClient) => Promise<T>, signal?: AbortSignal): Promise<T> {
+    signal?.throwIfAborted();
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      signal?.throwIfAborted();
       const result = await fn(client);
+      // Cancellation gates COMMIT dispatch; a dispatched commit keeps its database outcome.
+      signal?.throwIfAborted();
       await client.query("COMMIT");
       return result;
     } catch (error) {

@@ -1,7 +1,7 @@
 # Deployment direction
 
-Updated: 2026-11-16. Status: designed, not deployed. No cloud project, billing
-access, resources or service credentials are configured in this workspace.
+Updated: 2026-11-16. Status: designed, not deployed. Keyless CI discovery is verified;
+no Cliplane workloads are provisioned. Owner/billing configuration stays private.
 
 ## Decision
 

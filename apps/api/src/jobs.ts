@@ -1,8 +1,18 @@
 import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import type { Database } from "../../../packages/db/src/index";
 import { defaultEditPlan } from "../../../packages/domain/src/index";
+import { watchJobLease } from "./job-lease";
 import { checksum, media } from "./media";
 import type { LocalObjectStore } from "./storage";
+
+async function lockOwnedJob(client: PoolClient, id: string, owner: string): Promise<boolean> {
+  const owned = await client.query(
+    "SELECT id FROM processing_jobs WHERE id=$1 AND lease_owner=$2 AND status='running' FOR UPDATE",
+    [id, owner],
+  );
+  return owned.rowCount === 1;
+}
 
 export async function audit(
   db: Database,
@@ -19,12 +29,17 @@ export async function audit(
 }
 
 export class JobRunner {
-  private active = false;
+  private current?: Promise<boolean>;
+  private lease?: ReturnType<typeof watchJobLease>;
   private timer?: ReturnType<typeof setTimeout>;
   private stopping = false;
   constructor(
     private db: Database,
     private store: LocalObjectStore,
+    private options: {
+      executeMedia?: typeof media;
+      lease?: { intervalMs?: number; budgetMs?: number };
+    } = {},
   ) {}
   start(): void {
     const tick = async () => {
@@ -39,17 +54,25 @@ export class JobRunner {
     };
     void tick();
   }
-  stop(): void {
+  async stop(): Promise<void> {
     this.stopping = true;
     if (this.timer) clearTimeout(this.timer);
+    this.lease?.abort();
+    await this.current;
   }
 
-  async processOne(): Promise<boolean> {
-    if (this.active) return false;
-    this.active = true;
+  processOne(): Promise<boolean> {
+    if (this.stopping || this.current) return Promise.resolve(false);
+    const current = this.runOne().finally(() => {
+      this.current = undefined;
+    });
+    this.current = current;
+    return current;
+  }
+
+  private async runOne(): Promise<boolean> {
     const owner = randomUUID();
     let job: any;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
     try {
       await this.db.transaction(async (client) => {
         const exhausted = (
@@ -70,6 +93,8 @@ export class JobRunner {
             );
         }
       });
+      if (this.stopping) return false;
+      const requestedAt = performance.now();
       const rows = await this.db.query(
         `UPDATE processing_jobs SET status='running',attempts=attempts+1,lease_owner=$1,lease_until=now()+interval '2 minutes'
         WHERE id=(SELECT j.id FROM processing_jobs j JOIN source_assets s ON s.id=j.source_id AND s.workspace_id=j.workspace_id
@@ -79,29 +104,42 @@ export class JobRunner {
       );
       job = rows[0];
       if (!job) return false;
-      heartbeat = setInterval(() => {
-        void this.db
-          .query(
-            "UPDATE processing_jobs SET lease_until=now()+interval '2 minutes' WHERE id=$1 AND lease_owner=$2 AND status='running'",
-            [job.id, owner],
-          )
-          .catch(() => {});
-      }, 20000);
+      const lease = watchJobLease(
+        () =>
+          this.db.transaction(async (client) => {
+            // Check the clock after acquiring ownership's row lock, not before a lock wait.
+            if (!(await lockOwnedJob(client, job.id, owner))) return false;
+            lease.signal.throwIfAborted();
+            const renewed = await client.query(
+              "UPDATE processing_jobs SET lease_until=clock_timestamp()+interval '2 minutes' WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_until>clock_timestamp() RETURNING id",
+              [job.id, owner],
+            );
+            return renewed.rowCount === 1;
+          }, lease.signal),
+        { ...this.options.lease, startedAt: requestedAt },
+      );
+      this.lease = lease;
+      if (this.stopping) this.lease.abort();
+      const signal = this.lease.signal;
+      signal.throwIfAborted();
       const source = (
         await this.db.query("SELECT * FROM source_assets WHERE id=$1 AND workspace_id=$2", [
           job.source_id,
           job.workspace_id,
         ])
       )[0];
-      if (job.kind === "analyze") await this.analyze(job, source, owner);
-      else await this.render(job, source, owner);
+      signal.throwIfAborted();
+      if (job.kind === "analyze") await this.analyze(job, source, owner, signal);
+      else await this.render(job, source, owner, signal);
       return true;
     } catch {
+      this.lease?.abort();
       if (job) {
         const final = job.attempts >= 3;
         await this.db.transaction(async (client) => {
+          if (!(await lockOwnedJob(client, job.id, owner))) return;
           const updated = await client.query(
-            "UPDATE processing_jobs SET status=$3,error=$4,available_at=now()+interval '10 seconds',finished_at=CASE WHEN $3='failed' THEN now() ELSE NULL END WHERE id=$1 AND lease_owner=$2 AND status='running' RETURNING id",
+            "UPDATE processing_jobs SET status=$3,error=$4,available_at=now()+interval '10 seconds',finished_at=CASE WHEN $3='failed' THEN now() ELSE NULL END WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_until>clock_timestamp() RETURNING id",
             [
               job.id,
               owner,
@@ -123,12 +161,12 @@ export class JobRunner {
       }
       return !!job;
     } finally {
-      if (heartbeat) clearInterval(heartbeat);
-      this.active = false;
+      this.lease?.stop();
+      this.lease = undefined;
     }
   }
 
-  private async analyze(job: any, source: any, owner: string): Promise<void> {
+  private async analyze(job: any, source: any, owner: string, signal: AbortSignal): Promise<void> {
     await this.db.query(
       "UPDATE source_assets SET status='processing' WHERE id=$1 AND workspace_id=$2 AND status='queued'",
       [source.id, source.workspace_id],
@@ -136,12 +174,17 @@ export class JobRunner {
     const prefix = `${source.workspace_id}/${source.id}/analysis/${job.id}-${owner}`;
     let valid = false;
     try {
-      const result = await media({
-        operation: "analyze",
-        source: this.store.resolve(source.storage_key),
-        outputDir: this.store.resolve(prefix),
-      });
-      await this.db.transaction(async (client) => {
+      signal.throwIfAborted();
+      const result = await (this.options.executeMedia || media)(
+        {
+          operation: "analyze",
+          source: this.store.resolve(source.storage_key),
+          outputDir: this.store.resolve(prefix),
+        },
+        signal,
+      );
+      signal.throwIfAborted();
+      valid = await this.db.transaction(async (client) => {
         const current = (
           await client.query(
             "SELECT s.status,j.status AS job_status,j.lease_owner FROM source_assets s JOIN processing_jobs j ON j.source_id=s.id AND j.workspace_id=s.workspace_id WHERE s.id=$1 AND s.workspace_id=$2 AND j.id=$3 FOR UPDATE OF s,j",
@@ -154,7 +197,7 @@ export class JobRunner {
           current.job_status !== "running" ||
           current.lease_owner !== owner
         )
-          return;
+          return false;
         for (let index = 0; index < result.candidates.length; index++) {
           const c = result.candidates[index];
           await client.query(
@@ -188,10 +231,6 @@ export class JobRunner {
           ],
         );
         await client.query(
-          "UPDATE processing_jobs SET status='succeeded',finished_at=now(),telemetry=$3,error=NULL WHERE id=$1 AND lease_owner=$2",
-          [job.id, owner, result.telemetry],
-        );
-        await client.query(
           "INSERT INTO audit_events(id,workspace_id,kind,entity_id,data) VALUES($1,$2,'analysis.completed',$3,$4)",
           [
             randomUUID(),
@@ -200,14 +239,20 @@ export class JobRunner {
             { candidates: result.candidates.length, jobId: job.id },
           ],
         );
-        valid = true;
-      });
+        signal.throwIfAborted();
+        const completed = await client.query(
+          "UPDATE processing_jobs SET status='succeeded',finished_at=now(),telemetry=$3,error=NULL WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_until>clock_timestamp() RETURNING id",
+          [job.id, owner, result.telemetry],
+        );
+        if (completed.rowCount !== 1) throw new Error("Media job lease lost");
+        return true;
+      }, signal);
     } finally {
       if (!valid) await this.store.remove(prefix);
     }
   }
 
-  private async render(job: any, source: any, owner: string): Promise<void> {
+  private async render(job: any, source: any, owner: string, signal: AbortSignal): Promise<void> {
     const candidate = (
       await this.db.query("SELECT * FROM candidate_moments WHERE id=$1 AND workspace_id=$2", [
         job.candidate_id,
@@ -221,10 +266,13 @@ export class JobRunner {
       candidate.approved_revision !== revision ||
       candidate.approved_rights_revision !== source.rights_revision
     ) {
-      await this.db.query(
-        "UPDATE processing_jobs SET status='cancelled',finished_at=now() WHERE id=$1 AND lease_owner=$2",
-        [job.id, owner],
-      );
+      await this.db.transaction(async (client) => {
+        if (!(await lockOwnedJob(client, job.id, owner))) return;
+        await client.query(
+          "UPDATE processing_jobs SET status='cancelled',finished_at=now() WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_until>clock_timestamp()",
+          [job.id, owner],
+        );
+      }, signal);
       return;
     }
     const key = `${source.workspace_id}/${source.id}/renders/${candidate.id}-r${revision}-${job.id}-${owner}.mp4`;
@@ -232,14 +280,19 @@ export class JobRunner {
     const started = Date.now();
     let valid = false;
     try {
-      const metadata = await media({
-        operation: "render",
-        source: this.store.resolve(source.storage_key),
-        output: target,
-        plan: candidate.edit_plan,
-      });
+      signal.throwIfAborted();
+      const metadata = await (this.options.executeMedia || media)(
+        {
+          operation: "render",
+          source: this.store.resolve(source.storage_key),
+          output: target,
+          plan: candidate.edit_plan,
+        },
+        signal,
+      );
+      signal.throwIfAborted();
       const digest = await checksum(target);
-      await this.db.transaction(async (client) => {
+      valid = await this.db.transaction(async (client) => {
         const row = (
           await client.query(
             "SELECT c.*,s.status AS source_status,s.rights_revision,j.lease_owner,j.status AS job_status FROM candidate_moments c JOIN source_assets s ON s.id=c.source_id AND s.workspace_id=c.workspace_id JOIN processing_jobs j ON j.candidate_id=c.id AND j.workspace_id=c.workspace_id WHERE c.id=$1 AND c.workspace_id=$2 AND j.id=$3 FOR UPDATE OF s,c,j",
@@ -256,10 +309,10 @@ export class JobRunner {
           row.approved_rights_revision !== row.rights_revision
         ) {
           await client.query(
-            "UPDATE processing_jobs SET status='cancelled',finished_at=now() WHERE id=$1 AND lease_owner=$2",
+            "UPDATE processing_jobs SET status='cancelled',finished_at=now() WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_until>clock_timestamp()",
             [job.id, owner],
           );
-          return;
+          return false;
         }
         await client.query(
           "INSERT INTO rendered_clips(id,workspace_id,candidate_id,edit_revision,storage_key,checksum,metadata) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(candidate_id,edit_revision) DO UPDATE SET storage_key=excluded.storage_key,checksum=excluded.checksum,metadata=excluded.metadata",
@@ -270,15 +323,17 @@ export class JobRunner {
           source.workspace_id,
         ]);
         await client.query(
-          "UPDATE processing_jobs SET status='succeeded',finished_at=now(),error=NULL,telemetry=$3 WHERE id=$1 AND lease_owner=$2",
-          [job.id, owner, { wallSeconds: (Date.now() - started) / 1000 }],
-        );
-        await client.query(
           "INSERT INTO audit_events(id,workspace_id,kind,entity_id,data) VALUES($1,$2,'render.completed',$3,$4)",
           [randomUUID(), source.workspace_id, candidate.id, { revision }],
         );
-        valid = true;
-      });
+        signal.throwIfAborted();
+        const completed = await client.query(
+          "UPDATE processing_jobs SET status='succeeded',finished_at=now(),error=NULL,telemetry=$3 WHERE id=$1 AND lease_owner=$2 AND status='running' AND lease_until>clock_timestamp() RETURNING id",
+          [job.id, owner, { wallSeconds: (Date.now() - started) / 1000 }],
+        );
+        if (completed.rowCount !== 1) throw new Error("Media job lease lost");
+        return true;
+      }, signal);
     } finally {
       if (!valid) {
         await this.store.remove(key);
