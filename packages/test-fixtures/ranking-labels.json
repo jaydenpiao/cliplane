@@ -1,0 +1,12 @@
+{
+  "description": "Hand-labelled synthetic windows for evaluator mechanics, not a real creator benchmark",
+  "sourceSeconds": 3600,
+  "processingSeconds": 900,
+  "costUsd": 0,
+  "candidates": [
+    { "startMs": 10000, "endMs": 45000 },
+    { "startMs": 200000, "endMs": 235000 },
+    { "startMs": 400000, "endMs": 435000 }
+  ],
+  "accepted": [{ "startMs": 10000, "endMs": 45000 }]
+}

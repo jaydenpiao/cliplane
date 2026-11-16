@@ -1,0 +1,11 @@
+.git
+node_modules
+.venv
+.env
+.env.*
+!.env.example
+data
+work
+apps/web/.next
+**/__pycache__
+**/*.tsbuildinfo

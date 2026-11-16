@@ -1,0 +1,19 @@
+name: Scoped feature
+description: Propose a tested vertical slice
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Problem and desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Concrete acceptance criteria and tests
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Rights, privacy, platform and operational risks
