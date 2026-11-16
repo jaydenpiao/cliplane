@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
@@ -70,6 +70,11 @@ test("creator uploads, edits, reviews, renders and downloads a real clip", async
     "ultrafast",
     fixture,
   ]);
+  // A valid MP4 free box makes the real upload exceed Next's default 10 MB proxy limit.
+  const padding = Buffer.alloc(11 * 1024 * 1024);
+  padding.writeUInt32BE(padding.length, 0);
+  padding.write("free", 4);
+  await appendFile(fixture, padding);
   await page.goto("/");
   await page.getByRole("button", { name: "Create a workspace", exact: true }).click();
   await page.getByLabel("Your name", { exact: true }).fill("E2E Creator");
