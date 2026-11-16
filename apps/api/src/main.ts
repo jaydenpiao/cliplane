@@ -18,13 +18,24 @@ const retention = setInterval(() => {
   );
 }, 60000);
 console.log(`Cliplane API ready on http://127.0.0.1:${config.apiPort}`);
+let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const)
   process.on(signal, () => {
-    runner.stop();
+    if (shuttingDown) return;
+    shuttingDown = true;
+    const drained = runner.stop();
     cancelMediaProcesses();
     clearInterval(retention);
-    void app
-      .close()
-      .then(() => db.close())
-      .then(() => process.exit(0));
+    void Promise.allSettled([drained, app.close()])
+      .then(async (results) => {
+        await db.close();
+        if (results.some((result) => result.status === "rejected")) throw new Error("Shutdown failed");
+      })
+      .then(
+        () => process.exit(0),
+        () => {
+          console.error("Shutdown cleanup failed");
+          process.exit(1);
+        },
+      );
   });

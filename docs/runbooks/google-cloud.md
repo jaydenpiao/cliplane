@@ -156,3 +156,9 @@ A successful subsequent Cloud discovery run is required before claiming verified
 
 References: https://docs.github.com/en/actions/reference/security/oidc and
 https://docs.github.com/en/rest/actions/oidc .
+
+Verified: after owner apply, [run 43974596592](https://github.com/jaydenpiao/cliplane/actions/runs/43974596592)
+passed on main e603dc6 in staging. Keyless authentication, ACTIVE project identity and
+five required APIs were verified. Four explicitly checked provisioning/IAM permissions
+were absent; this is not a complete IAM audit. No workload was created. Environment
+separation, permanent GitHub policy/variables and deployment remain separate tasks.

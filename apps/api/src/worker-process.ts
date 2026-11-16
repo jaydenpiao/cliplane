@@ -18,7 +18,9 @@ export function runJsonProcess<T = any>(
   input: object,
   timeoutMs = 1900000,
   outputLimit = 5_000_000,
+  signal?: AbortSignal,
 ): Promise<T> {
+  if (signal?.aborted) return Promise.reject(new Error("Media job cancelled"));
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       detached: true,
@@ -37,20 +39,25 @@ export function runJsonProcess<T = any>(
       failure ||= new Error(message);
       killGroup(child);
     };
+    const onAbort = () => fail("Media job cancelled");
     const timer = setTimeout(() => fail("Media job timed out"), timeoutMs);
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      active.delete(child);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
     child.stdout.on("data", (chunk: Buffer) => {
       if (failure) return;
       output += chunk.toString();
       if (output.length > outputLimit) fail("Media worker exceeded output limit");
     });
     child.on("error", () => {
-      clearTimeout(timer);
-      active.delete(child);
+      cleanup();
       reject(new Error("Python/FFmpeg worker could not start"));
     });
     child.on("close", (code) => {
-      clearTimeout(timer);
-      active.delete(child);
+      cleanup();
       if (failure) {
         reject(failure);
         return;
