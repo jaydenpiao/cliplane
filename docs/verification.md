@@ -84,3 +84,18 @@ tracked-source Gitleaks reports no leaks. Hosted CI is authoritative for the fin
 
 The refreshed 39.2-second demo ends on an eight-second actual 720 × 1280 export;
 both fully decode, use H.264/yuv420p/30fps and have fast-start metadata. See evidence.json.
+
+## Cloud verification and streamed uploads
+
+A 25 MB real gameplay transport test reproduced HTTP500 after 30 s and Next's10MBbody
+cloning warning. The full browser workflow then failed with a valid MP4 padded by an
+11 MB free box. The new streaming source Route Handler passes that workflow, all existing
+browser/axe states, and four stream/auth/status/error regression tests. Retesting the
+actual 25 MB file returned201in 0.501 s; the transport-test source was deleted afterward.
+
+Cloud scripts have 19 fixture tests covering fixed main/staging context, target identity,
+API/permission checks, error redaction, owner configuration, preservation and dispatch.
+A review found overbroad permission-scope wording; a failing assertion was added, then
+fixed by returning the four exact checked permissions instead of claiming a full IAM audit.
+Zizmor 1.32.0 found no findings in the new pinned workflow. Live Cloud discovery Actions
+results establish actual Google connectivity; local fixture tests alone do not.

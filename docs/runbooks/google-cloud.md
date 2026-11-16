@@ -1,7 +1,9 @@
 # Google Cloud access and staging
 
-Status: setup prepared, not executed. This workspace has no gcloud installation,
-authenticated cloud identity or selected cloud project. No resources were created.
+Status: the owner executed the keyless bootstrap successfully on 2026-11-16.
+Cloud discovery Actions runs are the source of truth for independent connection
+verification. Application workloads have not been deployed. Project/account identifiers
+and the owner-provided IAM output remain outside public source.
 
 ## Owner setup
 
@@ -54,11 +56,48 @@ environment variables when the cloud project is known:
 | GCP_WORKLOAD_IDENTITY_PROVIDER | Provider resource name printed by bootstrap               |
 | GCP_SERVICE_ACCOUNT            | Discovery account initially; scoped deploy identity later |
 
-An eventual deploy job uses environment: staging, contents: read and id-token:
-write; it authenticates with google-github-actions/auth pinned to a reviewed
-commit. No cloud credentials go to PR test jobs. A deployment workflow must wait
-for the storage, worker, database and smoke-test requirements in the deployment
-design. No live OIDC verification or application deployment has run yet.
+## Verify the connection
+
+`Cloud discovery` is a fixed, read-only workflow on main using the staging environment.
+It obtains a five-minute service-account token through the pinned Google auth action,
+checks the target project's ID/number/lifecycle and required enabled APIs, and uses
+`testIamPermissions` to check four named provisioning permissions. Those checks are
+not a complete IAM audit. It creates no application resources or credential files.
+
+Two supported triggers:
+
+- Owner-configured environment variables: use workflow_dispatch from main.
+- A contents-write repository dispatch with type cloud-discovery and validated
+  project_id, workload_identity_provider and service_account payload fields.
+  This uses the supported repository API permission and requires no proxy bypass.
+  Identifiers are validated and masked before authentication; tokens/errors are not logged.
+
+The connected app still cannot write environment policies or Actions variables.
+Repository dispatch is available with its existing contents-write permission. A new
+staging environment may be created by GitHub when first referenced; do not claim its
+main-only deployment policy is enforced until the owner setup below is verified.
+Google federation itself restricts the numeric repository/owner, main ref and staging subject.
+
+For persistent variables and GitHub's main-only environment policy, run outside the
+managed credential route from the owner-controlled checkout:
+
+```sh
+node scripts/cloud/configure-github.mjs --project YOUR_STAGING_PROJECT_ID \
+  --provider YOUR_PROVIDER_RESOURCE --service-account YOUR_DISCOVERY_ACCOUNT
+# Inspect the preview, then apply:
+node scripts/cloud/configure-github.mjs --project YOUR_STAGING_PROJECT_ID \
+  --provider YOUR_PROVIDER_RESOURCE --service-account YOUR_DISCOVERY_ACCOUNT --apply
+```
+
+This helper needs an owner gh login with repository administration and Actions variable
+access. Preview performs no API writes; apply preserves conflicting owner protections
+by failing closed, upserts three non-secret environment variables, verifies the main
+branch policy and requests discovery. A requested run is not a passing verification.
+Never paste credentials into script arguments or source. Review the actual Actions run.
+
+A deployment workflow still requires storage/worker adapters, resource limits, database
+and production smoke tests from the deployment design. Do not use this check to imply
+that the application is deployed or that inherited IAM permissions were fully audited.
 
 ## GitHub Project access
 
@@ -93,3 +132,10 @@ No service-account key needs rotation because none is created.
 
 References: [Google federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines),
 [Projects API authentication](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects).
+
+## Reviewed implementation sources
+
+- https://github.com/google-github-actions/auth (pinned v3; no credential file)
+- https://github.com/actions/checkout/releases/tag/v7.0.1 (pinned; credential persistence off)
+- https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event
+- https://docs.cloud.google.com/resource-manager/reference/rest/v1/projects/testIamPermissions
