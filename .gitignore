@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+data/
+work/
+coverage/
+__pycache__/
+*.pyc
+.venv/
+.superpowers/
+*.tsbuildinfo
+dist/
