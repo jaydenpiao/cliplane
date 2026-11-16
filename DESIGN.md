@@ -18,6 +18,11 @@ Tokens live in `apps/web/app/globals.css`. Existing React/CSS/Lucide remain the 
 foundation. Geist provides the font; Playwright and axe provide browser/accessibility QA.
 Evaluate a component dependency against a concrete need before introducing it.
 
+The repository-local [cliplane-ui skill](.agents/skills/cliplane-ui/SKILL.md) maps
+frontend design and interface-review references to the existing implementation and
+verification commands. Read it when changing or reviewing frontend screens. Tool
+selection and adoption status: [frontend design tools](docs/research/frontend-design-tools.md).
+
 References inspected: [Cal.com](https://cal.com/),
 [Cal.com coss UI](https://github.com/cosscom/ui) (Base UI + Tailwind),
 [Vercel Geist](https://vercel.com/geist/introduction),

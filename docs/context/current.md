@@ -49,9 +49,13 @@ establish comprehensive security/accessibility certification or public-beta read
   api.github.com routing substitutes the app credential (verified with unauthenticated
   and invalid-Authorization read-only requests). Do not repeat OAuth here or claim a board.
   Run scripts/github/setup-project.mjs outside that route; see docs/project/board.md.
-- Administration/settings endpoints remain denied; no branch ruleset is claimed.
-- Google project identifier was supplied privately. No authenticated gcloud identity,
-  cloud workloads, database or deployment exists here. Never publish billing details.
+- Administration/settings and Actions-variable writes remain denied; no branch ruleset
+  is claimed. Supported contents-write repository dispatch is available for the read-only
+  Cloud discovery workflow. Environment main-only policy needs owner configuration.
+- Owner executed the keyless Google bootstrap successfully and supplied configuration
+  privately. Cloud discovery Actions runs establish independently verified access;
+  inspect their live result. No application deployment or Cloud SQL instance is configured.
+  Do not publish the owner IAM output, billing details or private account identifiers.
 - Reviewed keyless bootstrap: scripts/cloud/bootstrap-access.sh; owner steps:
   docs/runbooks/google-cloud.md. Default command previews only. Explicit --apply creates
   discovery access, no workloads or keys. Cloud SQL 17 is planned; local DB is PostgreSQL 17.
@@ -76,3 +80,47 @@ Next increment after visual/demo integration: #2 decoder isolation, then staging
 If agents are unavailable due to usage limits, resume saved scripts/evidence; do not loop
 on blocked dispatch. A daily bounded continuation task is configured outside GitHub;
 its future execution environment has not yet been verified.
+
+## Cloud and design follow-up
+
+Cloud discovery validates fixed main/staging context, issues a short-lived token without
+credential files, checks project identity/APIs and four explicit provisioning permissions.
+The result does not establish a complete IAM audit. Owner helper:
+`scripts/cloud/configure-github.mjs`; no cloud target IDs are committed.
+Focused security review's scope-overclaim finding was regression-tested and fixed.
+Zizmor 1.32.0 reports no workflow findings; action pins were resolved from official sources.
+
+Project UI skill: `.agents/skills/cliplane-ui/SKILL.md`, grounded in reviewed official
+Anthropic design and Vercel interface guidance. `docs/project/design-qa.md` now matches
+DESIGN.md's light/violet direction. No new runtime UI dependencies were added.
+
+Actual 30s Call of Duty: Black Ops II recording acquired locally under a creator CC BY4.0
+grant. Provenance, original files, private browser capture and screenshots remain in
+/workspace/work/gameplay-v3. Local playback/edit was verified; game rights remain unknown,
+approval is disabled, and no gameplay render or public publication is claimed. Keep the
+raw source metadata private because it includes uploader contact information.
+
+## Upload regression and clip AI research
+
+The actual 25 MB gameplay import exposed Next's external rewrite 10 MB body clone cap.
+Manual web upload returned500 after 30 s; the browser workflow with a valid 11 MB MP4 free
+box failed waiting for upload completion. A dedicated /api/sources GET/POST Route
+Handler now streams directly to the API, preserving session/CSRF headers and API limits.
+Four relay tests and both browser workflows pass; actual 25 MB web upload now returns 201
+in 0.501 s. Do not fix this by buffering multi-gigabyte uploads in Next memory.
+
+Cheap AI research: docs/research/clip-ai-options.md. CPU int8 faster-whisper+VAD is the
+recommended first ASR path; tiny/base speech/silence/offset smoke tests ran locally.
+Word-timing instability and narrow benchmark limits are recorded. No ASR runtime
+integration or paid model call is claimed. Gemini credit eligibility is account/grant
+specific; never assume welcome credits pay model charges.
+
+Context7 is callable and was used for framework docs. Product Design skills are installed,
+but its dedicated Browser interface is unavailable here; no plugin audit is claimed.
+Codex Security remains uninstalled per user. The local UI skill and existing QA still work.
+
+Latest local increment checks: 52 TS/API/helper/relay tests, 13 Python media tests,
+lint/types/Python quality and production build pass. Two Chromium workflows pass,
+including five axe scans and the upload above 10 MB. Current hosted checks must pass
+on the delivered head before merge. Independent review found no material upload
+relay auth/CSRF/tenancy/streaming issue; cloud scope wording was corrected.

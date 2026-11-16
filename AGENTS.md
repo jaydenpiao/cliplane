@@ -3,7 +3,8 @@
 Read `docs/context/current.md` first, then the selected issue and relevant area docs.
 Use `git status`, branch/HEAD and current GitHub checks to verify the recorded state.
 Read only what the task needs; do not reload the whole report or repository.
-For UI changes, read DESIGN.md; the requested visual direction is modern and light.
+For UI changes, read DESIGN.md and .agents/skills/cliplane-ui/SKILL.md.
+The requested visual direction is modern and light.
 
 Work one small issue/increment at a time. Research relevant current primary sources,
 implement, run meaningful checks, review, fix material findings, and checkpoint.

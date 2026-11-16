@@ -1,7 +1,7 @@
 # Studio design and visual QA
 
-Preserve the current restrained visual direction: clear hierarchy, warm neutral
-surfaces, consistent spacing, coral actions and readable state indicators.
+Preserve the requested modern light direction in DESIGN.md: clear hierarchy, cool
+near-white surfaces, white panels, violet actions and readable state indicators.
 Use shared CSS tokens and existing React/Lucide components. Add a UI library only
 for a demonstrated behavior/accessibility gap; evaluate its maintained official docs,
 keyboard/focus behavior, bundle cost, license and integration before adopting it.
