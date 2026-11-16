@@ -1,0 +1,203 @@
+[
+  {
+    "id": "V1",
+    "title": "[V1] Isolate native media jobs with per-job filesystem and resource limits",
+    "body": "Planned future work from `docs/backlog.md` (V1).\n\nAcceptance criteria and checks:\n\n- [ ] Run each native decoder job with no network access, bounded CPU/memory/process/file-size/disk use, and a per-job mount containing only its authorized media.\n- [ ] Preserve durable job cancellation, retry and lease-owner fencing across the isolated worker boundary.\n- [ ] Test malicious-media fixtures cannot access another source or exhaust host resources; exercise timeout/cancellation and cleanup.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:infra", "area:security", "type:feature", "priority:p0", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "V2",
+    "title": "[V2] Add resumable S3-compatible direct uploads",
+    "body": "Planned future work from `docs/backlog.md` (V2).\n\nAcceptance criteria and checks:\n\n- [ ] Add an S3/R2 storage adapter and short-lived, workspace-scoped direct-upload authorization with resumable transfer.\n- [ ] Finalize a source only after size/checksum validation and provenance/attestation persistence; keep original masters immutable.\n- [ ] Test interruption/resume on a large fixture, checksum mismatch, cross-workspace access and expired signatures.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:ingest", "area:infra", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "V3",
+    "title": "[V3] Add pluggable timestamped transcription with a local default",
+    "body": "Planned future work from `docs/backlog.md` (V3).\n\nAcceptance criteria and checks:\n\n- [ ] Persist timestamped transcription through a provider interface; default to a local provider and never enable paid usage implicitly.\n- [ ] Align delayed and segmented audio to source time and record provider latency/cost metadata.\n- [ ] Test synthetic delayed/segmented audio alignment, provider failure/retry and structured untrusted transcript handling.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:detection", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "V4",
+    "title": "[V4] Evaluate VAD and shortlisted semantic ranking against the baseline",
+    "body": "Planned future work from `docs/backlog.md` (V4).\n\nAcceptance criteria and checks:\n\n- [ ] Add modular VAD/speech activity and scene signals, preserving individual component scores.\n- [ ] Apply optional semantic reranking only to shortlisted candidates with strict input/output schemas; treat media text as untrusted content.\n- [ ] Evaluate labelled precision@5 against the deterministic baseline and enable the new ranker only after measurable improvement; include malformed output and prompt-injection fixtures.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:detection", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "V5",
+    "title": "[V5] Extend edit plans with templates, tracked crops, overlays and audio stems",
+    "body": "Planned future work from `docs/backlog.md` (V5).\n\nAcceptance criteria and checks:\n\n- [ ] Add saved templates, keyframed gameplay crops/tracked facecam, plain-text overlays and separated microphone/game stem selection.\n- [ ] Keep edits versioned and declarative, preserve source masters, and invalidate approval after material edit changes.\n- [ ] Add golden/structural media tests for transforms, timing, overlay placement and stem selection/muting.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:web", "area:render", "type:feature", "priority:p1", "risk:copyright", "size:L"]
+  },
+  {
+    "id": "V6",
+    "title": "[V6] Add per-span content-risk signals without granting rights clearance",
+    "body": "Planned future work from `docs/backlog.md` (V6).\n\nAcceptance criteria and checks:\n\n- [ ] Persist and display per-span spoiler, music and third-party content risk signals for creator review.\n- [ ] Keep detection separate from authorization and legal clearance; unknown states remain explicit.\n- [ ] Regression-test embargo locks, exact-revision approval and export gates, including misleading/absent detector signals.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:rights", "area:detection", "type:feature", "priority:p1", "risk:copyright", "size:L"]
+  },
+  {
+    "id": "V7",
+    "title": "[V7] Add account recovery, export/deletion and workspace roles",
+    "body": "Planned future work from `docs/backlog.md` (V7).\n\nAcceptance criteria and checks:\n\n- [ ] Implement verified email, password reset, account export/deletion, workspace roles and invitations.\n- [ ] Audit downstream deletion jobs and enforce permissions consistently across sources, derivatives and workflow actions.\n- [ ] Test cross-role/cross-tenant access, token expiry/replay, recovery flows and retryable downstream deletion.",
+    "milestone": "Vertical MVP",
+    "labels": ["area:security", "area:web", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "P1",
+    "title": "[P1] Ingest authorized Twitch broadcaster/editor media through official APIs",
+    "body": "Planned future work from `docs/backlog.md` (P1).\n\nAcceptance criteria and checks:\n\n- [ ] Use documented Twitch APIs with broadcaster/editor authorization and least-privilege scopes; persist source provenance.\n- [ ] Reject media outside the connected user's authorization; do not add playback scraping, cookie extraction or undocumented downloads.\n- [ ] Add mocked/sandbox tests for scope checks, unauthorized sources, provider errors and tenant isolation.",
+    "milestone": "Publishing Beta",
+    "labels": ["area:ingest", "type:feature", "priority:p1", "risk:platform", "risk:copyright", "size:L"]
+  },
+  {
+    "id": "P2",
+    "title": "[P2] Persist publication lifecycle and exact approval provenance",
+    "body": "Planned future work from `docs/backlog.md` (P2).\n\nAcceptance criteria and checks:\n\n- [ ] Persist provider-neutral Publication, PlatformAccount and Connection records with source → rights assessment → edit → human approval → account provenance.\n- [ ] Make publication idempotent and retain external request/post identifiers; distinguish safe retry from ambiguous outcomes requiring manual reconciliation.\n- [ ] Test duplicate jobs, stale approvals, concurrent retries, ambiguous provider failures and cross-workspace account access without making real posts.",
+    "milestone": "Publishing Beta",
+    "labels": [
+      "area:publishing",
+      "area:rights",
+      "type:feature",
+      "priority:p1",
+      "risk:platform",
+      "risk:copyright",
+      "size:L"
+    ]
+  },
+  {
+    "id": "P3",
+    "title": "[P3] Implement one official Buffer or YouTube publishing adapter",
+    "body": "Planned future work from `docs/backlog.md` (P3).\n\nAcceptance criteria and checks:\n\n- [ ] Implement one documented Buffer or YouTube provider chosen from configured project priorities, using encrypted credentials and least-privilege scopes.\n- [ ] Preserve the provider-neutral approval/idempotency contract; require explicit creator confirmation for any real publication.\n- [ ] Use sandbox/dry-run integration tests for token handling, rate limits, retry outcomes and request identifiers; tests must not publish publicly.",
+    "milestone": "Publishing Beta",
+    "labels": [
+      "area:publishing",
+      "area:security",
+      "type:feature",
+      "priority:p1",
+      "risk:platform",
+      "risk:privacy",
+      "size:L"
+    ]
+  },
+  {
+    "id": "P4",
+    "title": "[P4] Add TikTok draft and creator-consent workflow",
+    "body": "Planned future work from `docs/backlog.md` (P4).\n\nAcceptance criteria and checks:\n\n- [ ] Show creator visibility, caption and consent controls and support draft/confirmation-first delivery.\n- [ ] Respect documented audit/private-client restrictions, scopes and posting/rate limits.\n- [ ] Test consent gating, restricted/unaudited-client behavior, rate-limit responses and retry safety through mocks or sandbox; no real social posts.",
+    "milestone": "Publishing Beta",
+    "labels": ["area:publishing", "area:web", "type:feature", "priority:p1", "risk:platform", "size:L"]
+  },
+  {
+    "id": "P5",
+    "title": "[P5] Synchronize provider metrics without inventing unavailable values",
+    "body": "Planned future work from `docs/backlog.md` (P5).\n\nAcceptance criteria and checks:\n\n- [ ] Persist MetricSnapshot records using only documented provider capabilities and available permissions.\n- [ ] Deduplicate sync requests/identifiers and represent unavailable watch-time or engagement metrics distinctly from zero.\n- [ ] Test repeated/out-of-order sync, unsupported metric fields, provider rate limits and cross-account/tenant isolation.",
+    "milestone": "Publishing Beta",
+    "labels": ["area:publishing", "type:feature", "priority:p1", "risk:platform", "risk:privacy", "size:M"]
+  },
+  {
+    "id": "P6",
+    "title": "[P6] Verify signed webhooks and support OAuth rotation/revocation",
+    "body": "Planned future work from `docs/backlog.md` (P6).\n\nAcceptance criteria and checks:\n\n- [ ] Validate webhook signatures and freshness/replay protections before processing events.\n- [ ] Implement credential rotation/revocation and account-bound OAuth callback validation with least-privilege scope handling.\n- [ ] Test forged/replayed webhooks, cross-account callbacks, revoked credentials and token rotation without exposing secrets.",
+    "milestone": "Publishing Beta",
+    "labels": [
+      "area:security",
+      "area:publishing",
+      "type:feature",
+      "priority:p1",
+      "risk:privacy",
+      "risk:platform",
+      "size:L"
+    ]
+  },
+  {
+    "id": "P7",
+    "title": "[P7] Import creator-owned storage exports and watched-folder uploads",
+    "body": "Planned future work from `docs/backlog.md` (P7).\n\nAcceptance criteria and checks:\n\n- [ ] Add authorized creator-owned storage exports and a local watched-folder uploader with short-lived, scoped credentials.\n- [ ] Persist authorization/provenance for every imported recording and preserve checksum validation and workspace boundaries.\n- [ ] Test SSRF/redirect protections for import paths, unauthorized objects, credential expiry and provenance persistence.",
+    "milestone": "Publishing Beta",
+    "labels": ["area:ingest", "type:feature", "priority:p2", "risk:privacy", "risk:platform", "size:L"]
+  },
+  {
+    "id": "O1",
+    "title": "[O1] Add explicit usage-based plans, quotas and signed billing webhooks",
+    "body": "Planned future work from `docs/backlog.md` (O1).\n\nAcceptance criteria and checks:\n\n- [ ] Implement explicit usage-based plans and enforce documented workspace quotas.\n- [ ] Verify signed billing webhooks and make entitlement changes idempotent; do not imply unlimited allowances or initiate paid purchases automatically.\n- [ ] Use test-mode/mocked billing to cover signature rejection, duplicate/out-of-order events and quota enforcement; no real charges.",
+    "milestone": "Open Beta",
+    "labels": ["area:infra", "area:web", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "O2",
+    "title": "[O2] Add authorized chat signals and evaluated game detector plugins",
+    "body": "Planned future work from `docs/backlog.md` (O2).\n\nAcceptance criteria and checks:\n\n- [ ] Add authorized chat-spike signals, a detector plugin interface and game-specific packs derived from real labelled examples.\n- [ ] Keep core ranking game-agnostic and preserve component scores and creator feedback provenance.\n- [ ] Evaluate accepted-at-k, duplicate rate, boundary quality, processing latency and cost/source-hour; test unauthorized chat rejection and plugin failures.",
+    "milestone": "Open Beta",
+    "labels": ["area:detection", "type:feature", "priority:p1", "risk:platform", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "O3",
+    "title": "[O3] Validate creator-personalized ranking using sufficient labelled data",
+    "body": "Planned future work from `docs/backlog.md` (O3).\n\nAcceptance criteria and checks:\n\n- [ ] Define sufficient labelled-data criteria before introducing creator-personalized ranking.\n- [ ] Use creator acceptance/rejection/edit history with strict workspace boundaries and a deterministic fallback.\n- [ ] Demonstrate improvement over the baseline in the offline evaluation suite; test sparse-history fallback and cross-creator/tenant isolation.",
+    "milestone": "Open Beta",
+    "labels": ["area:detection", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "O4",
+    "title": "[O4] Add workflow observability and test operational recovery",
+    "body": "Planned future work from `docs/backlog.md` (O4).\n\nAcceptance criteria and checks:\n\n- [ ] Propagate correlation IDs and expose queue/stage latency dashboards, quota alerts and storage/deletion observability.\n- [ ] Document and exercise backup restore and application rollback against disposable environments.\n- [ ] Test telemetry for failures/retries/cleanup, secret-safe logging, alert thresholds and successful restore/rollback drills.",
+    "milestone": "Open Beta",
+    "labels": ["area:infra", "type:feature", "priority:p1", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "O5",
+    "title": "[O5] Replace legal drafts with operator-reviewed privacy, terms and DMCA procedures",
+    "body": "Planned future work from `docs/backlog.md` (O5).\n\nAcceptance criteria and checks:\n\n- [ ] Obtain operator/human review of privacy, terms, DMCA/takedown procedures and relevant commercial gameplay rights.\n- [ ] Replace operational drafts before public launch and define responsibilities for notices, removals and repeat infringement.\n- [ ] Review documentation against implemented retention/deletion and publication behavior; record unresolved rights issues explicitly rather than implying clearance.",
+    "milestone": "Open Beta",
+    "labels": [
+      "area:rights",
+      "type:docs",
+      "priority:p1",
+      "risk:copyright",
+      "risk:privacy",
+      "risk:platform",
+      "size:L"
+    ]
+  },
+  {
+    "id": "O6",
+    "title": "[O6] Add scoped API keys, public API and signed webhooks",
+    "body": "Planned future work from `docs/backlog.md` (O6).\n\nAcceptance criteria and checks:\n\n- [ ] Expose the supported public API behind scoped, revocable API keys, workspace-aware rate limits and signed outgoing webhooks.\n- [ ] Keep credentials secret and enforce the same tenant/approval boundaries as interactive sessions.\n- [ ] Test cross-tenant access, scope restrictions, key revocation, webhook signature verification and rate-limit behavior.",
+    "milestone": "Open Beta",
+    "labels": ["area:infra", "area:security", "type:feature", "priority:p2", "risk:privacy", "size:L"]
+  },
+  {
+    "id": "O7",
+    "title": "[O7] Configure supported repository security checks and SBOM/license reporting",
+    "body": "Planned future work from `docs/backlog.md` (O7).\n\nAcceptance criteria and checks:\n\n- [ ] Generate an SBOM and license-compliance report, and configure supported host-side CodeQL, secret scanning, rulesets and required checks.\n- [ ] Confirm actual repository/account eligibility before enabling paid or unavailable features; distinguish workflow files from remotely enabled settings.\n- [ ] Validate generated reports and configured checks, and record actual enabled settings and any account-dependent gaps.",
+    "milestone": "Open Beta",
+    "labels": ["area:infra", "area:security", "type:feature", "priority:p2", "risk:privacy", "size:M"]
+  },
+  {
+    "id": "O8",
+    "title": "[O8] Preserve immutable rights-assessment snapshots for publication history",
+    "body": "Planned future work from `docs/backlog.md` (O8).\n\nAcceptance criteria and checks:\n\n- [ ] Persist an immutable assessment snapshot for each rights revision before publication-history work relies on historical approvals.\n- [ ] Reference the exact snapshot from review/publication provenance and preserve the current rights-update invalidation rules.\n- [ ] Test that later assessment changes cannot alter prior snapshots and that historical approval provenance remains reconstructable and tenant-isolated.",
+    "milestone": "Open Beta",
+    "labels": [
+      "area:rights",
+      "area:security",
+      "type:feature",
+      "priority:p1",
+      "risk:copyright",
+      "risk:privacy",
+      "size:M"
+    ]
+  },
+  {
+    "id": "O9",
+    "title": "[O9] Display configured upload and retention limits in the studio",
+    "body": "Planned future work from `docs/backlog.md` (O9).\n\nAcceptance criteria and checks:\n\n- [ ] Expose safe runtime upload-size and raw-retention settings to the authenticated UI.\n- [ ] Replace hard-coded default-only upload/retention text with the active configured values.\n- [ ] Test non-default limits are displayed correctly without exposing server secrets; verify default behavior remains accurate.",
+    "milestone": "Open Beta",
+    "labels": ["area:web", "type:feature", "priority:p2", "risk:privacy", "size:S"]
+  }
+]
