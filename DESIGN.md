@@ -9,6 +9,8 @@ clear review controls and useful workspace content in the first viewport.
   clear heading hierarchy, consistent spacing and limited decorative copy.
 - Media cards lead into a focused player with contextual editing and rights controls.
   Source framing is preserved; only a rendered export shows final composition.
+- Use compact task headings and one quiet provenance line per card. Keep the first
+  clip visible early on mobile; editor headings leave room for the actual controls.
 - Desktop has a compact sidebar and three-column library; mobile uses one column
   and a dismissible menu. Hidden navigation must not paint shadows across content.
 - Preserve keyboard focus, Escape dismissal, busy state and focus return in dialogs.

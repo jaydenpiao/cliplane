@@ -1,101 +1,76 @@
-# Verified checkpoint — 2026-11-15
+# Verification
 
-Cliplane implements the supplied report's first-iteration local vertical slice. No
-production deployment, real posting, paid inference or third-party purchase occurred.
+Updated: 2026-11-16 (America/Los_Angeles). Use live PR/Actions state for the delivered
+revision. A merged source tree does not imply an application deployment.
 
-## Executed checks
+## Current local UI checkpoint
 
-| Command / check              | Observed result                                                              |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| npm run check                | Passed: formatter/lint, TS typecheck, tests, Python quality and Next build   |
-| npm test                     | 22 tests passed across domain, PostgreSQL API and process-lifecycle suites   |
-| npm run test:media           | 13 Python tests passed, including real FFmpeg renders and evaluation         |
-| npm run test:e2e             | 2 Chromium tests passed: desktop/mobile demo and full new-creator workflow   |
-| npm run check:python         | Ruff lint/format passed; mypy passed both worker/evaluator source files      |
-| npm run build                | Production Next.js build passed                                              |
-| npm run db:migrate           | Passed; repeated application is idempotent                                   |
-| npm audit --audit-level=high | Zero vulnerabilities across installed dependencies                           |
-| npm sbom --sbom-format=spdx  | SPDX dependency manifest generated locally                                   |
-| Container build              | Passed with node:24-alpine, Python, FFmpeg and production web build          |
-| npm run evaluate             | Synthetic evaluator completed; these results are not a creator benchmark     |
-| Independent reviews          | Requirements, API/security, media correctness and final whole-project review |
+The compact studio pass is on feat/studio-polish, issue #43. Check its PR state before
+repeating implementation. The original light/violet tokens, Geist and Lucide are retained.
 
-Container build needed the managed environment's CA bundle as a BuildKit secret in a
-temporary Dockerfile. TLS verification remained enabled and the CA was not persisted
-in source or image layers. The initial Debian build exhausted the environment's disk
-allocation; the Alpine image passed. Task-created build cache is cleaned afterward.
+| Check               | Observed result                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| npm run check       | 94 TS/API/helper tests and 13 Python/media tests pass; lint, types, Ruff/mypy and production build pass |
+| npm run test:e2e    | Two Chromium workflows pass: responsive sample and real upload/edit/rights/render/download/deletion     |
+| Accessibility scans | Five axe scans have no violations in the scanned WCAG2/2.1 AA rules                                     |
+| Responsive review   | No horizontal overflow at 320, 390, 768 and 1440 px; long-text DOM fixtures retain ellipsis             |
+| Mobile hierarchy    | First thumbnail at y418px at 390px width; its action footer fits the initial 844px viewport             |
+| Fonts/media         | Geist loaded; all six thumbnails loaded; original preview playback advanced                             |
+| Keyboard/dialog     | Visible focus, forward/reverse containment, Escape return and rights-note/footer reachability verified  |
 
-## Material review findings fixed and regression-tested
+Demo review reproduced a stale rendering notice after the Download action appeared.
+The browser regression first failed with the old text, then passed after feedback was
+derived from current export status. A second failing case covered unsaved draft edits:
+feedback now stays hidden while the draft differs from the approved revision and
+returns when the saved values are restored. The actual download still passes.
 
-- Stale edit/rights forms and unseen-revision approval: preconditions checked under locks.
-- Cancelled-render recovery and repeat approval: retry-safe jobs and preserved render access.
-- Cleanup failures: deleting/expired storage cleanup remains retryable.
-- Retry/deletion race: source/job transitions share one transaction.
-- Expired leases: exhausted jobs mark sources failed and allow manual recovery.
-- Decoder failures: partial outputs cleaned; final media probed before atomic replacement.
-- Delayed audio: RMS bins preserve source timeline; silent fallbacks span the recording.
-- Very short trims: minimum 100 ms validated before writing output.
-- Worker timeout: whole process group terminated; diagnostics/probe fields bounded.
+Screenshots in docs/images come from the running production web build with a separate,
+original synthetic-media dataset. Stress text was applied only in a review browser DOM;
+it was not persisted or used in the demo. Local browser scripts, measurements and logs
+remain outside Git under /workspace/work/design-v3 and /workspace/work/logs/studio-polish-*.
 
-## Delivery boundaries
+Manual review and automated scans cover the observed states; they do not establish full
+accessibility conformance. Another browser engine and interrupted/error-flow acceptance
+remain #29.
+Final hosted verify/browser/container, Secrets and CodeQL checks are required before merge.
 
-Repository access was later enabled. Public source, four milestones, the issue board and
-PR #31 are created under jaydenpiao/cliplane. Commits, issues and PR attribution resolve
-to jaydenpiao. Native Projects creation and administration/settings access remain denied;
-no Project or branch ruleset is claimed. See docs/project/board.md for live task links.
+## Security and runtime evidence
 
-Use current PR/Actions checks for the latest revision. Gitleaks, CodeQL and the
-verify/browser/container jobs are configured; inspect their actual result before merge.
+- PR #31 fixed unseen/stale approval and a reproduced reserved-demo identity bypass.
+  Demo access requires an exact user/workspace seed marker; keyboard modal behavior was
+  reproduced and fixed. API tests exercise tenancy, review revisions, deletion and retry.
+- PR #40 reproduced Next's body-cloning failure with a 25 MB source and an 11 MB browser
+  fixture. The streaming relay passed both; the actual 25 MB retry returned201 in0.501s.
+- PR #41 corrected the immutable OIDC subject. Owner apply and Cloud discovery run43974596592
+  verified keyless identity, ACTIVE project and five required APIs. Four explicit
+  provisioning/IAM permissions were absent; this is not a complete IAM audit. No workloads
+  were created.
+- PR #42 added native process cancellation, serialized lease checks, expiry fencing after
+  row locks, COMMIT-dispatch cancellation and shutdown drain. Independent review reproduced
+  two transaction races; real PostgreSQL regressions failed before fixes and pass afterward.
+  Deferred COMMIT failures remove unpublished files; a dispatched commit keeps its outcome.
+  See [decoder lifecycle](security/decoder-lifecycle.md).
 
-Screenshots in docs/images were captured from the running studio. Source packaging
-omits credentials, private/raw data, node_modules, build caches and virtualenvs.
+Main af65a08 passed Quality, Secrets and CodeQL. Later revisions must be checked independently.
+Decoder filesystem/network/resource isolation remains #2: the current rootless Docker daemon
+accepts but ignores per-job cgroup flags. Container build success does not prove that contract.
 
-## Non-blocking review follow-ups
+## Demo and packaging
 
-- Immutable historical rights assessments before live publication provenance.
-- Derive displayed upload/retention limits from configuration instead of default text.
-- Complete the public-beta controls and later milestones in docs/backlog.md.
+The [product demo](demos/README.md) shows real source playback, editing, independent rights
+review, approval, rendering and download. Its final shot is the actual downloaded export.
+Current media properties, full-decode results and hashes are in [evidence](demos/evidence.json);
+avoid duplicating changing hashes or durations here. Original procedural footage/audio is
+used; personal account information and distribution drafts remain outside this repository.
 
-## Studio redesign — 2026-11-16
+Portable source and demo bundles omit credentials, private/raw media, dependencies, caches
+and virtual environments. The demo bundle contains only its nine allowlisted text files.
 
-Replaced the decorative overview with a light media-first library, consistent editor
-and upload surfaces, larger controls and restrained violet actions. Desktop/mobile
-browser verification includes actual upload, trim/caption, rights review, render,
-download and source deletion. Hover previews use authenticated source media.
+## Remaining release work
 
-A fresh focused security review reproduced a reserved-demo email registration bypass.
-Regression tests first observed registration 201 instead of 400 and unmarked demo
-access 200 instead of 503. Registration now reserves the identity; demo login requires
-a seed marker bound to the exact user/workspace. Legacy seed upgrades require stored
-synthetic attestation provenance. Both regression cases pass.
+Native Projects/settings still require owner setup outside the managed API route; no
+Project or branch ruleset is claimed. Issues/milestones and CI exist. See [Project setup](project/board.md).
 
-Keyboard QA observed that opening the editor left focus behind the modal. A shared
-dialog lifecycle now manages focus, Tab wrapping, Escape dismissal and focus return;
-upload and help use the same behavior. Busy operations block dismissal.
-
-Latest checks and remaining work are recorded in docs/context/current.md.
-
-Final light-studio checks: 29 TypeScript/API/process/Project-helper tests, 13 Python
-media tests, lint/types, Ruff/mypy and production build passed. Two browser workflows
-include five axe scans with zero WCAG 2/2.1 AA rule violations in the scanned states;
-keyboard and visual checks supplement the automated scan. Fresh/repeat sample seeding
-passed in an isolated disposable schema. npm audit reports zero vulnerabilities;
-tracked-source Gitleaks reports no leaks. Hosted CI is authoritative for the final head.
-
-The refreshed 39.2-second demo ends on an eight-second actual 720 × 1280 export;
-both fully decode, use H.264/yuv420p/30fps and have fast-start metadata. See evidence.json.
-
-## Cloud verification and streamed uploads
-
-A 25 MB real gameplay transport test reproduced HTTP500 after 30 s and Next's10MBbody
-cloning warning. The full browser workflow then failed with a valid MP4 padded by an
-11 MB free box. The new streaming source Route Handler passes that workflow, all existing
-browser/axe states, and four stream/auth/status/error regression tests. Retesting the
-actual 25 MB file returned201in 0.501 s; the transport-test source was deleted afterward.
-
-Cloud scripts have 19 fixture tests covering fixed main/staging context, target identity,
-API/permission checks, error redaction, owner configuration, preservation and dispatch.
-A review found overbroad permission-scope wording; a failing assertion was added, then
-fixed by returning the four exact checked permissions instead of claiming a full IAM audit.
-Zizmor 1.32.0 found no findings in the new pinned workflow. Live Cloud discovery Actions
-results establish actual Google connectivity; local fixture tests alone do not.
+Public-beta gates remain in [the release workflow](project/workflow.md): enforced decoder isolation, account
+lifecycle, storage/job adapters, recovery/rollback and operator/legal review. Historical
+rights-assessment provenance and configuration-derived upload/retention text remain follow-ups.

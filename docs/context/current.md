@@ -1,14 +1,15 @@
 # Current handoff
 
-Updated: 2026-11-16 UTC. Verify git status, HEAD and current GitHub checks first.
+Updated: 2026-11-16 (America/Los_Angeles). Verify git status, HEAD and GitHub checks first.
 Read only the selected issue and relevant area docs; do not reload the whole report.
 
 ## Goal and next increment
 
-Current increment: #2 media cancellation and lease liveness, followed by the actual
-decoder sandbox. The current rootless Docker daemon does not enforce per-job cgroups.
-Delivery branch: feat/decoder-isolation. Inspect its PR state before repeating work;
-after integration, the next increment is a qualified sandbox and bounded artifact export.
+Current delivery: #43 compact studio UI and export feedback, branch feat/studio-polish.
+The user prioritized a modern, simple, aesthetic interface. Inspect the branch's PR
+before repeating work. After integration, resume #2's actual decoder sandbox, qualified
+resource enforcement and bounded artifact export. The local rootless Docker daemon
+does not enforce per-job cgroups; configured flags are not proof of enforcement.
 Storage/job adapters follow before a Cloud Run deployment. The owner authorizes
 reviewed passing merges to main and cloud setup within a reviewed resource plan.
 Work one bounded implementation issue at a time. A merge is not a deployment.
@@ -26,6 +27,7 @@ Keep personal account information and distribution drafts outside public GitHub.
 - PR #40 merged as 4ba8b9e: streaming upload relay, read-only cloud discovery workflow,
   owner configuration helpers, local UI skill and current AI/design research.
 - PR #41 merged as e603dc6: verified immutable GitHub OIDC subject correction.
+- PR #42 merged as af65a08: process cancellation, lease/COMMIT fencing and shutdown drain.
 - The relay fixes Next's external rewrite body cap: an actual 25 MB web upload changed
   from 500 after 30s to 201 in 0.501s. Four relay regressions and the full browser upload
   above 10 MB pass. Preserve streaming; do not buffer multi-gigabyte files in Next.
@@ -46,22 +48,31 @@ See docs/runbooks/google-cloud.md for the supported dispatch/setup procedure.
 
 ## Verification
 
-Media cancellation: npm run check passes with 94 TS/API/helper tests, 13 Python/media
-tests, lint/types, Ruff/mypy and production web build. The 42 focused process/watcher/job
-tests are included in those totals. Real PostgreSQL tests cover owner replacement,
-expiry during lock waits, blocked audit insertion, deferred commit failure and the
-already-dispatched COMMIT boundary. A real FFmpeg descendant is killed on abort.
+UI pass: npm run check passes 94 TS/API/helper and 13 Python/media tests, lint/types,
+Ruff/mypy and production build. Two Chromium workflows pass, with five axe scans and
+actual upload/edit/rights/render/download/deletion. Demo review found a stale rendering
+notice after completion; a browser regression failed first, then passed after feedback
+was derived from current status. Unsaved draft feedback also failed first, then passed
+by hiding notices when edits or rights differ from the saved revision. The affected
+workflow was replayed.
 
-Independent review reproduced two transaction-timing findings. Both received failing
-regressions before fixes: cancellation now gates COMMIT dispatch; retry/early cancellation
-lock ownership before checking expiry. Definite commit failures also clean unpublished
-artifacts. There are no deferred review findings. Full sandbox work remains open.
+Independent source/visual review found no material blockers: no overflow at 320, 390,
+768 and 1440px, Geist/media loaded, actual source playback advanced, focus/Tab/Escape
+behavior and rights-note/footer reachability passed. First mobile thumbnail is y418px
+at390px, about147px higher than the earlier screenshot. Long-text stress stayed in browser DOM.
+Canonical screenshots use an isolated original-media sample dataset. See docs/verification.md.
 
-Logs: /workspace/work/logs/decoder-check.log and decoder-review-green.log. Two local
-Chromium workflows also passed, including five axe scans and actual upload/edit/rights/
-render/download/deletion; log decoder-e2e.log. Final hosted verify/browser/container,
-Secrets and CodeQL checks must pass on the delivered head before merge. Use live PR
-checks/merge state as authority. These checks do not establish public-beta readiness.
+Current logs: /workspace/work/logs/studio-polish-check.log, studio-polish-e2e.log,
+studio-notice-red.log, studio-notice-draft-red.log and studio-notice-green.log.
+Review captures/measurements: /workspace/work/design-v3/after. Demo's final corrected
+take: /workspace/work/design-v3/demo-final; canonical hashes/properties are in
+docs/demos/evidence.json. Never mix mutable inputs from concurrent captures.
+Final hosted verify/browser/container, Secrets and CodeQL must pass before merge.
+Use live checks/merge state as authority; full sandbox/public-beta gates remain open.
+
+PR #42's 42 focused process/watcher/job tests are included in the 94 above; they cover
+real PostgreSQL lock/expiry/COMMIT races and actual FFmpeg descendant termination.
+Its two reproduced review findings were fixed. See docs/security/decoder-lifecycle.md.
 
 ## Access and task management
 
@@ -77,15 +88,17 @@ checks/merge state as authority. These checks do not establish public-beta readi
 - #39 upload regression is Done. #27 discovery is verified; environment separation
   remains open. #30 Project and #22 repository controls remain blocked on owner
   configuration. #29 QA is partial.
-- #2 is In progress; cancellation/lease work is one bounded part. Full sandbox,
-  account lifecycle, recovery and release gates remain open. Cloud SQL 17 is planned;
-  the local database is PostgreSQL 17. See docs/security/decoder-lifecycle.md.
+- #43 is the selected UI increment; #2's remaining sandbox work is Ready afterward.
+  Account lifecycle, recovery and release gates remain open. Cloud SQL17 is planned;
+  the local database is PostgreSQL17. See docs/security/decoder-lifecycle.md.
 
 ## Design, media and AI
 
 Read DESIGN.md and .agents/skills/cliplane-ui/SKILL.md before UI work. Current direction
 is modern light/violet, with self-hosted Geist and Lucide. Official Anthropic/Vercel
 guidance and evaluated libraries are recorded in docs/research/frontend-design-tools.md.
+Studio headings are compact; cards have one provenance line; the editor heading leaves
+room for review fields. No new UI dependency was added. README now clones current main.
 Context7 is callable. Product Design skills are installed, but their dedicated Browser
 interface is unavailable here; no plugin audit is claimed. Codex Security is uninstalled.
 Existing local browser/axe/security checks continue independently.
@@ -107,9 +120,9 @@ the actual grant/account; do not assume welcome credits cover model charges.
 ```sh
 git status --short
 git log -3 --oneline
-gh pr list --repo jaydenpiao/cliplane --state all --head feat/decoder-isolation
+gh pr list --repo jaydenpiao/cliplane --state all --head feat/studio-polish
 gh run list --repo jaydenpiao/cliplane --limit 5
-tail -20 /workspace/work/logs/decoder-check.log
+tail -20 /workspace/work/logs/studio-polish-check.log
 ```
 
 Preserve private recovery refs under refs/cliplane-* locally; never push/mirror them.
@@ -118,6 +131,9 @@ Implementation worktree: /workspace/work/cliplane-decoder; the original checkout
 or resuming; do not assume an old feature branch is unmerged. The PostgreSQL Docker
 container persists. Environment reconnects can stop API/web processes; check health
 and restart them when needed. Do not build Next while its server uses the same .next.
+Isolated UI preview: localhost3001/API4001; private operator helper
+work/studio-polish-run.mjs and /workspace/work/design-v3/preview-env.json. The helper's
+check mode uses the default relay port; build restores the preview configuration.
 Evidence and private owner configuration live outside Git under /workspace/work.
 A daily bounded continuation task is configured; its future execution environment is
 not verified. If usage/agents are unavailable, resume saved evidence rather than looping

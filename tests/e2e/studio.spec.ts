@@ -21,7 +21,7 @@ test("sample studio is responsive and uses real media", async ({ page }) => {
   await page.goto("/");
   await expectAccessible(page, "Sign-in accessibility");
   await page.getByRole("button", { name: "Explore the sample studio" }).click();
-  await expect(page.getByRole("heading", { name: "From recording to remarkable." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your studio" })).toBeVisible();
   await expect(page.locator(".moment-card").first()).toBeVisible();
   await expect(page.locator(".moment-card img").first()).toHaveJSProperty("naturalWidth", 640);
   await expectAccessible(page, "Studio accessibility");
@@ -44,7 +44,7 @@ test("sample studio is responsive and uses real media", async ({ page }) => {
   await mkdir("work/screenshots", { recursive: true });
   await page.screenshot({ path: "work/screenshots/studio-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("heading", { name: "From recording to remarkable." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your studio" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(page, "Mobile studio accessibility");
   await page.screenshot({ path: "work/screenshots/studio-mobile.png", fullPage: true });
@@ -82,7 +82,7 @@ test("creator uploads, edits, reviews, renders and downloads a real clip", async
   await page.getByLabel("Email address").fill(`test-${randomUUID()}@example.test`);
   await page.getByLabel("Password", { exact: true }).fill(randomUUID());
   await page.getByRole("button", { name: "Create workspace", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "From recording to remarkable." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your studio" })).toBeVisible();
   await page.getByRole("button", { name: "Upload recording", exact: true }).click();
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await page.getByLabel("Recording title").fill("Browser synthetic fixture");
@@ -108,6 +108,15 @@ test("creator uploads, edits, reviews, renders and downloads a real clip", async
   await page.getByRole("button", { name: "Approve & render", exact: true }).click();
   const download = page.getByRole("link", { name: "Download", exact: true });
   await expect(download).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole("dialog").getByRole("status")).toHaveText("Your export is ready to download.");
+  await page.getByRole("button", { name: "Edit clip", exact: true }).click();
+  const clipTitle = page.getByLabel("Clip title", { exact: true });
+  const approvedTitle = await clipTitle.inputValue();
+  await clipTitle.fill(`${approvedTitle} draft`);
+  await expect(download).toBeHidden();
+  await expect(page.getByRole("dialog").getByRole("status")).toHaveCount(0);
+  await clipTitle.fill(approvedTitle);
+  await expect(page.getByRole("dialog").getByRole("status")).toHaveText("Your export is ready to download.");
   const [file] = await Promise.all([page.waitForEvent("download"), download.click()]);
   expect(await file.failure()).toBeNull();
   await file.saveAs("work/e2e-output.mp4");

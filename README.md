@@ -18,7 +18,9 @@ See [verified results and review notes](docs/verification.md) for the tested che
 
 [Working demo](docs/demos/cliplane-demo.mp4) · [Agent handoff](docs/context/current.md) · [GitHub Project setup](docs/project/board.md)
 
-Implementation and review evidence: [PR #31](https://github.com/jaydenpiao/cliplane/pull/31).
+Implementation and review evidence: [studio](https://github.com/jaydenpiao/cliplane/pull/31),
+[streaming uploads](https://github.com/jaydenpiao/cliplane/pull/40),
+[media cancellation](https://github.com/jaydenpiao/cliplane/pull/42).
 See [DESIGN.md](DESIGN.md) for the light studio design and UI tools.
 
 ## Run it
@@ -29,7 +31,7 @@ use WSL2 on Windows. Worker cancellation uses POSIX process groups.
 The complete quality suite also uses uv for Python tooling.
 
 ```sh
-git clone --branch feat/vertical-mvp https://github.com/jaydenpiao/cliplane.git
+git clone https://github.com/jaydenpiao/cliplane.git
 cd cliplane
 npm ci
 cp .env.example .env
@@ -77,7 +79,7 @@ It is shared local sample data: never put private footage in the demo workspace.
 This is the report's **first vertical slice**, not all of its 90-day roadmap.
 Transcription, learned/game-specific ranking, chat signals, object-store presigned
 uploads, resumable uploads, storage imports, OAuth publishing, billing and team invites
-are tracked with acceptance criteria in [docs/backlog.md](docs/backlog.md).
+are tracked with acceptance criteria in [GitHub issues](https://github.com/jaydenpiao/cliplane/issues).
 
 The current baseline uses signal heuristics. It cannot infer music licenses, legal
 rights, spoilers, a mission's meaning or whether a clip will perform well. Default
@@ -101,8 +103,6 @@ test database in shared environments.
 npm run check
 npm run evaluate
 npm audit --omit=dev
-uv run --group dev ruff check workers
-uv run --group dev mypy workers/media/pipeline.py workers/media/evaluate.py
 # Running development servers and seeded local demo required:
 npm run test:e2e
 ```
