@@ -26,12 +26,12 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthScreen } from "../components/auth-screen";
 import { Brand } from "../components/brand";
 import { EditorDialog } from "../components/editor-dialog";
 import { UploadDialog } from "../components/upload-dialog";
-import { api, date, duration, type Moment } from "../lib/api";
+import { APIError, api, date, duration, type Moment } from "../lib/api";
 import { useDialog } from "../lib/use-dialog";
 
 const navigation = [
@@ -58,21 +58,49 @@ export default function Studio() {
     [error, setError] = useState(""),
     [mobileMenu, setMobileMenu] = useState(false),
     [info, setInfo] = useState(false);
+  const [selectedDetail, setSelectedDetail] = useState<Moment | null>(null);
+  const [selectedRefreshError, setSelectedRefreshError] = useState("");
+  const selectedId = useRef<string | null>(null);
   const helpDialog = useDialog(() => setInfo(false), false, info);
   const refresh = useCallback(async () => {
-    const [d, s, m, j, e] = await Promise.all([
+    const activeId = selectedId.current;
+    const [d, s, m, j, e, detail] = await Promise.all([
       api("/dashboard"),
       api<any[]>("/sources"),
       api<Moment[]>("/candidates"),
       api<any[]>("/jobs"),
       api<any[]>("/events"),
-    ]);
+      activeId
+        ? api<Moment>(`/candidates/${activeId}`).catch((refreshError: unknown) => ({ refreshError }))
+        : Promise.resolve(null),
+    ]).catch((error: unknown) => {
+      if (error instanceof APIError && error.status === 401) {
+        setSelectedDetail(null);
+        setUser(null);
+      }
+      throw error;
+    });
     setDashboard(d);
     setSources(s);
     setMoments(m);
     setJobs(j);
     setEvents(e);
-    setError("");
+    if (activeId && selectedId.current === activeId) {
+      if (detail && "refreshError" in detail) {
+        const failure = detail.refreshError;
+        if (failure instanceof APIError && [401, 403, 404].includes(failure.status)) {
+          setSelectedDetail(null);
+          setSelectedRefreshError("");
+          setError("This clip is unavailable in your workspace.");
+        } else {
+          setSelectedRefreshError("Could not refresh this clip. Your draft is preserved. Retrying…");
+        }
+      } else {
+        setSelectedDetail(detail);
+        setSelectedRefreshError("");
+        setError("");
+      }
+    } else if (!activeId) setError("");
   }, []);
   const signIn = useCallback(async () => {
     try {
@@ -95,6 +123,49 @@ export default function Studio() {
     }, 5000);
     return () => clearInterval(timer);
   }, [user, refresh]);
+  useEffect(() => {
+    const restore = () => {
+      const value = new URL(window.location.href).searchParams.get("clip");
+      const id =
+        value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
+      selectedId.current = id;
+      setSelected(id);
+      setSelectedDetail(null);
+      setSelectedRefreshError("");
+      if (value && !id) setError("This clip is unavailable in your workspace.");
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  useEffect(() => {
+    setSelectedDetail(null);
+    if (!user || !selected) return;
+    const controller = new AbortController();
+    void api<Moment>(`/candidates/${selected}`, { signal: controller.signal })
+      .then((detail) => {
+        if (!controller.signal.aborted) {
+          setSelectedDetail(detail);
+          setSelectedRefreshError("");
+          setError("");
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError("This clip is unavailable in your workspace.");
+      });
+    return () => controller.abort();
+  }, [user, selected]);
+  function selectMoment(id: string | null) {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("clip", id);
+    else url.searchParams.delete("clip");
+    window.history.pushState(window.history.state, "", url);
+    selectedId.current = id;
+    setSelectedDetail(null);
+    setSelectedRefreshError("");
+    setSelected(id);
+    setError("");
+  }
   const stats = dashboard?.stats || {
     sources: 0,
     source_hours: 0,
@@ -104,7 +175,7 @@ export default function Studio() {
     accepted: 0,
     rejected: 0,
   };
-  const selectedMoment = moments.find((m) => m.id === selected);
+  const selectedMoment = selectedDetail?.id === selected ? selectedDetail : null;
   const filtered = moments
     .filter(
       (m) =>
@@ -145,7 +216,7 @@ export default function Studio() {
         <p>Opening your studio…</p>
       </div>
     );
-  if (!user) return <AuthScreen onReady={() => void signIn()} />;
+  if (!user) return <AuthScreen onReady={() => void signIn().then(() => window.scrollTo(0, 0))} />;
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
@@ -364,7 +435,7 @@ export default function Studio() {
               {filtered.length > 0 ? (
                 <div className="moment-grid">
                   {filtered.slice(0, view === "overview" ? 6 : 500).map((m) => (
-                    <MomentCard key={m.id} moment={m} onClick={() => setSelected(m.id)} />
+                    <MomentCard key={m.id} moment={m} onClick={() => selectMoment(m.id)} />
                   ))}
                 </div>
               ) : (
@@ -426,7 +497,7 @@ export default function Studio() {
                         aria-label={`View ${s.title}`}
                         onClick={() => {
                           const m = moments.find((m) => m.source_id === s.id);
-                          if (m) setSelected(m.id);
+                          if (m) selectMoment(m.id);
                           else navigate("activity");
                         }}
                       >
@@ -665,7 +736,7 @@ export default function Studio() {
                       disabled={!moments.some((m) => m.source_id === s.id && m.source_status === "ready")}
                       onClick={() => {
                         const m = moments.find((m) => m.source_id === s.id);
-                        if (m) setSelected(m.id);
+                        if (m) selectMoment(m.id);
                       }}
                     >
                       Review <ArrowRight size={14} />
@@ -844,7 +915,13 @@ export default function Studio() {
         />
       )}
       {selectedMoment && (
-        <EditorDialog moment={selectedMoment} onClose={() => setSelected(null)} onUpdate={refresh} />
+        <EditorDialog
+          key={selectedMoment.id}
+          moment={selectedMoment}
+          refreshError={selectedRefreshError}
+          onClose={() => selectMoment(null)}
+          onUpdate={refresh}
+        />
       )}
       {info && (
         <div className="modal-backdrop">

@@ -8,7 +8,6 @@ import {
   LoaderCircle,
   MessageSquare,
   Monitor,
-  Play,
   Save,
   ShieldCheck,
   SlidersHorizontal,
@@ -18,8 +17,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { EditPlan, RightsAssessment } from "../../../packages/domain/src/index";
 import { approvalBlockers } from "../../../packages/domain/src/index";
-import { api, type Moment, time } from "../lib/api";
+import { api, type Moment } from "../lib/api";
+import { normalizeCrop, trimPlan, updateCaption } from "../lib/editor";
 import { useDialog } from "../lib/use-dialog";
+import { ClipTimeline } from "./clip-timeline";
+import { CompositionPreview } from "./composition-preview";
 
 const layouts = [
   { id: "blur", name: "Full frame", hint: "Blurred background", icon: Monitor },
@@ -30,14 +32,18 @@ const layouts = [
 
 export function EditorDialog({
   moment,
+  refreshError = "",
   onClose,
   onUpdate,
 }: {
-  moment: Moment & { rights_revision?: number };
+  moment: Moment;
+  refreshError?: string;
   onClose: () => void;
   onUpdate: () => Promise<void>;
 }) {
-  const [plan, setPlan] = useState<EditPlan>(structuredClone(moment.edit_plan)),
+  const [plan, setPlan] = useState<EditPlan>(() =>
+      trimPlan(structuredClone(moment.edit_plan), moment.metadata.durationMs),
+    ),
     [rights, setRights] = useState<RightsAssessment>({ ...moment.rights }),
     [title, setTitle] = useState(moment.title);
   const [tab, setTab] = useState<"edit" | "rights">("edit"),
@@ -47,10 +53,13 @@ export function EditorDialog({
     [reason, setReason] = useState("Reviewed by creator"),
     [showRender, setShowRender] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
-  const sourceDuration = moment.metadata.durationMs / 1000;
+  const renderedVideo = useRef<HTMLVideoElement>(null);
+  const [playheadMs, setPlayheadMs] = useState(moment.edit_plan.startMs);
+  const [playing, setPlaying] = useState(false);
   const editDirty = title !== moment.title || JSON.stringify(plan) !== JSON.stringify(moment.edit_plan);
   const rightsDirty = JSON.stringify(rights) !== JSON.stringify(moment.rights);
   const blockers = approvalBlockers(rights, plan);
+  const renderVisible = showRender && !editDirty && !rightsDirty && moment.status === "rendered";
   const exportNotice =
     moment.status === "rendered"
       ? "Your export is ready to download."
@@ -68,10 +77,20 @@ export function EditorDialog({
   const incoming = JSON.stringify({ plan: moment.edit_plan, title: moment.title, rights: moment.rights });
   useEffect(() => {
     const current = JSON.parse(incoming);
-    setPlan(current.plan);
+    setPlan(trimPlan(current.plan, moment.metadata.durationMs));
     setTitle(current.title);
     setRights(current.rights);
-  }, [incoming]);
+  }, [incoming, moment.metadata.durationMs]);
+  useEffect(() => {
+    if (editDirty || rightsDirty) setShowRender(false);
+  }, [editDirty, rightsDirty]);
+  useEffect(() => {
+    if (renderVisible) video.current?.pause();
+    const output = renderedVideo.current;
+    return () => {
+      output?.pause();
+    };
+  }, [renderVisible]);
   async function action(name: string, work: () => Promise<void>) {
     setBusy(name);
     setError("");
@@ -87,7 +106,7 @@ export function EditorDialog({
   }
   async function save(): Promise<{ editRevision: number; rightsRevision: number }> {
     let editRevision = moment.edit_revision,
-      rightsRevision = moment.rights_revision || 1;
+      rightsRevision = moment.rights_revision;
     if (editDirty) {
       await api(`/candidates/${moment.id}`, {
         method: "PATCH",
@@ -105,16 +124,14 @@ export function EditorDialog({
     return { editRevision, rightsRevision };
   }
   function setBoundary(which: "startMs" | "endMs", seconds: number) {
-    setPlan((p) => {
-      const next = { ...p, [which]: Math.round(seconds * 1000) };
-      const length = next.endMs - next.startMs;
-      return {
-        ...next,
-        captions: p.captions
-          .filter((c) => c.startMs < length)
-          .map((c) => ({ ...c, endMs: Math.min(c.endMs, length) })),
-      };
-    });
+    setPlan((p) => trimPlan(p, moment.metadata.durationMs, which, seconds * 1000));
+  }
+  function seek(ms: number) {
+    const next = Math.min(moment.metadata.durationMs, Math.max(0, ms));
+    if (video.current && Number.isFinite(next)) {
+      video.current.currentTime = next / 1000;
+      setPlayheadMs(next);
+    }
   }
   const dialog = useDialog(onClose, !!busy);
   return (
@@ -134,7 +151,9 @@ export function EditorDialog({
           <div>
             <span className={`status-dot ${moment.status}`} />
             {moment.status.replaceAll("_", " ")}
-            <span className="revision">Edit {moment.edit_revision}</span>
+            <span className="revision">
+              {editDirty || rightsDirty ? "Unsaved draft" : `Saved · edit ${moment.edit_revision}`}
+            </span>
           </div>
           <button
             type="button"
@@ -149,110 +168,73 @@ export function EditorDialog({
         <div className="editor-body">
           <div className="editor-preview">
             <div className="preview-top">
-              <span className="eyebrow">{showRender ? "RENDERED OUTPUT" : "SOURCE PREVIEW"}</span>
-              <span>{showRender ? "Final composition" : "Edits apply on render"}</span>
+              <span className="eyebrow">{renderVisible ? "ACTUAL RENDERED OUTPUT" : "LIVE COMPOSITION"}</span>
+              <span>{renderVisible ? "Final export" : "Draft preview · export is authoritative"}</span>
             </div>
-            <div className={`video-stage ${showRender ? "render-mode" : ""}`}>
-              <video
-                ref={video}
-                controls
-                playsInline
-                preload="metadata"
-                key={`${moment.id}-${showRender}`}
-                src={
-                  showRender
-                    ? `/api/candidates/${moment.id}/rendered`
-                    : `/api/sources/${moment.source_id}/media#t=${plan.startMs / 1000},${plan.endMs / 1000}`
-                }
-                onLoadedMetadata={() => {
-                  if (video.current && !showRender) video.current.currentTime = plan.startMs / 1000;
-                }}
-                onTimeUpdate={() => {
-                  if (video.current && !showRender && video.current.currentTime * 1000 >= plan.endMs)
-                    video.current.pause();
-                }}
+            <div hidden={renderVisible}>
+              <CompositionPreview
+                moment={moment}
+                plan={plan}
+                videoRef={video}
+                onTimeChange={setPlayheadMs}
+                onPlayingChange={setPlaying}
               />
             </div>
+            {renderVisible && (
+              <div className="video-stage render-mode">
+                <video
+                  ref={renderedVideo}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  aria-label="Actual rendered output"
+                  src={`/api/candidates/${moment.id}/rendered`}
+                />
+              </div>
+            )}
             <div className="preview-bottom">
               <span>
                 <Film size={15} /> {moment.game}
               </span>
-              <span>
-                {moment.metadata.width} × {moment.metadata.height} · {Math.round(moment.metadata.fps)} fps
-              </span>
+              <span>{plan.muteAudio ? "Audio muted" : "Source audio"}</span>
             </div>
-            <div className="trim-timeline">
-              <div className="timeline-labels">
-                <span>{time(plan.startMs)}</span>
-                <strong>{((plan.endMs - plan.startMs) / 1000).toFixed(1)}s selected</strong>
-                <span>{time(plan.endMs)}</span>
-              </div>
-              <div className="timeline-track">
-                <div
-                  style={{
-                    left: `${(plan.startMs / moment.metadata.durationMs) * 100}%`,
-                    width: `${((plan.endMs - plan.startMs) / moment.metadata.durationMs) * 100}%`,
-                  }}
-                />
-              </div>
-              <div className="trim-fields">
-                <label>
-                  Start (seconds)
-                  <input
-                    type="number"
-                    min={0}
-                    max={sourceDuration}
-                    step={0.1}
-                    value={plan.startMs / 1000}
-                    onChange={(e) => setBoundary("startMs", Number(e.target.value))}
-                  />
-                </label>
-                <label>
-                  End (seconds)
-                  <input
-                    type="number"
-                    min={0}
-                    max={sourceDuration}
-                    step={0.1}
-                    value={plan.endMs / 1000}
-                    onChange={(e) => setBoundary("endMs", Number(e.target.value))}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => {
-                    if (video.current) {
-                      video.current.currentTime = plan.startMs / 1000;
-                      void video.current.play();
-                    }
-                  }}
-                >
-                  <Play size={15} /> Play selection
-                </button>
-              </div>
-            </div>
-            <div className="signal-explainer">
-              <span className="score-bubble">{moment.score}</span>
-              <div>
-                <strong>Why this moment?</strong>
-                <p>{moment.reason}. Baseline signal ranking; your judgment comes next.</p>
-              </div>
-            </div>
-            {moment.status === "rendered" && (
+            <ClipTimeline
+              sourceId={moment.source_id}
+              durationMs={moment.metadata.durationMs}
+              plan={plan}
+              playheadMs={playheadMs}
+              playing={playing}
+              onSeek={(ms) => {
+                setShowRender(false);
+                seek(ms);
+              }}
+              onBoundary={setBoundary}
+              onPlay={() => {
+                setShowRender(false);
+                if (!video.current) return;
+                if (!video.current.paused) video.current.pause();
+                else {
+                  seek(plan.startMs);
+                  void video.current
+                    .play()
+                    .catch(() => setError("Playback could not start. Try Play selection again."));
+                }
+              }}
+            />
+            {moment.status === "rendered" && !editDirty && !rightsDirty && (
               <button
                 type="button"
                 className="button secondary full"
                 onClick={() => setShowRender(!showRender)}
               >
-                {showRender ? "Return to source preview" : "Watch rendered output"}
+                {renderVisible ? "Return to source preview" : "Watch rendered output"}
               </button>
             )}
           </div>
           <div className="editor-controls">
-            <div className="editor-title">
-              <h2 id="editor-title">Clip editor</h2>
-            </div>
+            <h2 id="editor-title" className="visually-hidden">
+              Clip editor
+            </h2>
             <div className="tabbar">
               <button type="button" className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")}>
                 <SlidersHorizontal size={15} /> Edit clip
@@ -351,15 +333,9 @@ export function EditorDialog({
                           step={0.1}
                           min={0}
                           value={cue.startMs / 1000}
+                          max={(cue.endMs - 1) / 1000}
                           onChange={(e) =>
-                            setPlan({
-                              ...plan,
-                              captions: plan.captions.map((c, i) =>
-                                i === index
-                                  ? { ...c, startMs: Math.round(Number(e.target.value) * 1000) }
-                                  : c,
-                              ),
-                            })
+                            setPlan((p) => updateCaption(p, index, "startMs", Number(e.target.value) * 1000))
                           }
                         />
                       </label>
@@ -370,13 +346,9 @@ export function EditorDialog({
                           step={0.1}
                           min={0}
                           value={cue.endMs / 1000}
+                          max={(plan.endMs - plan.startMs) / 1000}
                           onChange={(e) =>
-                            setPlan({
-                              ...plan,
-                              captions: plan.captions.map((c, i) =>
-                                i === index ? { ...c, endMs: Math.round(Number(e.target.value) * 1000) } : c,
-                              ),
-                            })
+                            setPlan((p) => updateCaption(p, index, "endMs", Number(e.target.value) * 1000))
                           }
                         />
                       </label>
@@ -408,8 +380,8 @@ export function EditorDialog({
                   />
                 </label>
                 <p className="subtle-note">
-                  Exports are H.264 MP4 at 720 × 1280, or the original aspect ratio. Source framing stays
-                  intact.
+                  Draft framing and captions approximate the export. H.264 MP4 exports use 720 × 1280, or the
+                  original aspect ratio.
                 </p>
               </div>
             ) : (
@@ -531,9 +503,9 @@ export function EditorDialog({
             )}
           </div>
         </div>
-        {error && (
+        {(error || refreshError) && (
           <div className="editor-feedback form-error" role="alert">
-            {error}
+            {error || refreshError}
           </div>
         )}
         {feedback && !editDirty && !rightsDirty && (
@@ -590,7 +562,11 @@ export function EditorDialog({
                 type="button"
                 className="button primary"
                 disabled={
-                  !!busy || blockers.length > 0 || reason.trim().length < 3 || moment.status === "rendering"
+                  !!busy ||
+                  blockers.length > 0 ||
+                  reason.trim().length < 3 ||
+                  moment.status === "rendering" ||
+                  moment.metadata.durationMs < 100
                 }
                 onClick={() =>
                   void action("render", async () => {
@@ -642,7 +618,7 @@ function CropFields({
             min={0}
             max={100}
             step={1}
-            onChange={(e) => onChange({ ...rect, [key]: Number(e.target.value) / 100 })}
+            onChange={(e) => onChange(normalizeCrop({ ...rect, [key]: Number(e.target.value) / 100 }))}
           />
         </label>
       ))}
