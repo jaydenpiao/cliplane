@@ -32,6 +32,13 @@ remains separate; draft changes hide stale output/download feedback.
 - Final genuine demo is complete and inspected; see canonical demo evidence below.
   Hosted current-head checks/merge are live GitHub state. No deployment claim.
 
+Hosted browser diagnosis: the workflow installed Playwright headless shell 159,
+but the old system fallback selected ambient Chromium 157. Trace media responses
+were complete authenticated 206 MP4s; the selected browser could not decode them.
+The exact installed 159 binary decoded and played the same proxy/export bytes.
+CI now uses its managed browser; explicit local overrides remain supported.
+This is a browser-selection correction, with playback assertions preserved.
+
 Fresh baseline on unchanged `36d70b5e` passed 94 TS/API/helper and 13 Python/media
 tests plus lint/types, Ruff/mypy and production build. Do not confuse that baseline
 with final changed-source evidence. Logs and inspected captures for this session are

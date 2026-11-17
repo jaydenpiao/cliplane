@@ -13,7 +13,8 @@ Issue #45: focused editing workbench. Branch `feat/focused-workbench` is based o
 main `36d70b5e107c5acba0cc9f50e0dda4d5ccd84367`. The prior #43/PR #44 compact pass is
 merged; it was not final design acceptance. Source implementation, local acceptance, independent review and the final demo are
 complete. Reviewed source commit: `026348897cdc265dba52241433f2873407666ab6`.
-Use live PR metadata for subsequent docs-only commits and integration state.
+Integration record: [PR #46](https://github.com/jaydenpiao/cliplane/pull/46).
+Use its live head/check/merge metadata; do not repeat the implementation.
 
 Read [the spec](../superpowers/specs/2026-11-17-focused-workbench-design.md),
 [plan](../superpowers/plans/2026-11-17-focused-workbench.md), DESIGN.md and the local
@@ -68,6 +69,13 @@ open it linked to #45; if pending, inspect current-head checks; if merged, do no
 repeat #45 and resume #2. Require verify/browser/container/Secrets/CodeQL and verified
 jaydenpiao attribution before the authorized merge. A merge does not imply deployment.
 
+CI browser checkpoint: the initial hosted run selected ambient Chromium 157
+instead of the installed Playwright 159 runtime and failed real MP4 playback.
+Exact downloaded 159 decodes those same authenticated proxy/export bytes. The
+reviewed fix makes the system fallback local-only while preserving `CHROMIUM_PATH`.
+The workflow still installs the lockfile-matched managed browser. Inspect current-head
+CI for the fix; never merge a failed browser run or weaken its playback assertions.
+
 ## Runtime and continuation
 
 Only this fresh clone exists at `/workspace/work/cliplane`; the older environment's
@@ -121,7 +129,8 @@ information and private distribution drafts outside this public repository.
 ```sh
 git status --short
 git log -3 --oneline
-gh pr list --repo jaydenpiao/cliplane --state all --head feat/focused-workbench
+gh pr view 46 --repo jaydenpiao/cliplane --json state,mergedAt,headRefOid
+gh pr checks 46 --repo jaydenpiao/cliplane
 cat /workspace/work/iteration-ledger.md
 curl -fsS http://localhost:4000/api/health
 ```

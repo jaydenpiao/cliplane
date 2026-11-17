@@ -21,6 +21,12 @@ Lockfiles pin project dependencies. Do not print environment values or credentia
 | Container build                 | docker build -f infra/Dockerfile -t cliplane:local . |
 | Repo / issue / PR / checks      | gh repo view; gh issue list; gh pr view; gh run list |
 
+CI uses the Playwright-managed browser installed by its workflow after `npm ci`.
+`CHROMIUM_PATH` is an explicit override; the `/usr/bin/chromium` fallback is for
+non-CI local work only. A runner's ambient browser can differ in version and media
+support from the installed test runtime. Keep actual source/export playback checks
+enabled rather than replacing them with HTTP-only or metadata-only assertions.
+
 Do not run a Next production build while filming a development server using the same
 .next directory. Stop/restart only task-owned processes and verify /api/health.
 

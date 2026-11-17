@@ -10,7 +10,8 @@ export default defineConfig({
     headless: true,
     launchOptions: {
       executablePath:
-        process.env.CHROMIUM_PATH || (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
+        process.env.CHROMIUM_PATH ||
+        (!process.env.CI && existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
       args: ["--no-sandbox", "--disable-dev-shm-usage"],
     },
     trace: "retain-on-failure",
