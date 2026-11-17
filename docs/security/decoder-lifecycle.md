@@ -36,26 +36,44 @@ the Docker CLI group is insufficient. This change adds no sandbox or deployment.
 
 ## Runtime evidence and alternatives
 
-The current Docker 29.9.2 daemon is rootless with CgroupDriver=none and no delegated
-per-job resource controllers. A disposable container accepted 64 MiB memory, 0.5 CPU
-and 16 PID flags with success/no warning, but read back the shared environment's
-8 GiB memory, two CPUs and unlimited PIDs. Command success/HostConfig is insufficient.
-Read-only root, no network, dropped capabilities and sized tmpfs did work.
+Fresh bounded evidence on 2026-11-17 independently confirmed Docker 29.9.2 rootless,
+cgroup v2 and `CgroupDriver=none`. The daemon warned that cgroups were unavailable,
+but container creation accepted 64 MiB memory, 0.5 CPU and 16 PID flags without a
+warning. Actual in-container values were `memory.max=8589934592` (8 GiB),
+`cpu.max=200000 100000` (2 CPUs), `pids.max=max` and `memory.swap.max=max`.
+Command success and HostConfig are insufficient; this runtime fails the requested
+aggregate bounds. No resource-exhaustion test ran.
 
-Bubblewrap and prlimit also work, but per-process address/CPU/file limits and real-UID
-NPROC accounting do not prove per-job aggregate limits. Do not substitute them for
-the full contract. The next sandbox increment should qualify actual in-container
-controller values, use a dedicated immutable image and bounded artifact export, and
-fail closed on unsupported runtimes. Tmpfs disappears when its container stops;
-ordinary bind output directories and persistent Docker logs are not bounded storage.
+The one disposable, immutable-ID probe had a read-only root, no external network,
+nonroot UID/GID, zero capabilities, no-new-privileges and sized
+`noexec,nosuid,nodev` tmpfs mounts. Those controls were observed to work; the root
+write returned EROFS and only loopback/no IPv4 routes were present. No host
+repository/storage/socket bind was supplied. The existing probe image's declared
+volume destination was covered by bounded tmpfs. Explicit `finally` cleanup
+removed the exact container, and an identity-specific check confirmed absence.
+See [the scoped evidence and preflight decision](../research/decoder-controller-preflight.md).
 
-Primary references reviewed 2026-11-16:
+The next increment is an operator command,
+`npm run decoder:preflight -- --image 'sha256:<local-helper-image-id>'`, requiring
+a trusted immutable local helper with no declared volumes and no implicit pull.
+An unsupported daemon must return nonzero before container creation. Supported
+candidates must compare effective controller values inside the bounded probe.
+Every result retains `decoderIsolationQualified: false`; this controller preflight
+does not enable a sandbox. Application media execution remains native.
+
+Full issue #2 gates remain open: dedicated per-job filesystem/network/resource
+isolation, behaviorally qualified aggregate quotas, a dedicated immutable decoder
+image, bounded scratch/artifact export and container-identity cancellation tied to
+existing lease/COMMIT fencing. Per-process address/CPU/file limits and real-UID
+NPROC accounting do not prove per-job aggregate limits. Tmpfs consumes memory, can
+swap and disappears when its container stops; ordinary bind output directories
+and persistent Docker logs are not bounded storage.
+
+Current primary references reviewed 2026-11-17:
 
 - https://docs.docker.com/engine/security/rootless/tips/#limiting-resources
 - https://docs.docker.com/engine/storage/tmpfs/
-- https://man7.org/linux/man-pages/man2/getrlimit.2.html
-- https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#delegation
-- https://nodejs.org/docs/latest-v24.x/api/child_process.html
+- https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 
 ## Acceptance
 

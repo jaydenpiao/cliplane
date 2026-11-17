@@ -5,21 +5,22 @@
 Use Node 24 (supported minimum 22.12), Python 3.12, uv, FFmpeg/ffprobe and PostgreSQL 17.
 Lockfiles pin project dependencies. Do not print environment values or credentials.
 
-| Task                            | Command                                              |
-| ------------------------------- | ---------------------------------------------------- |
-| Install JS/Python tooling       | npm ci; uv sync --locked --group dev                 |
-| Start local DB                  | npm run db:up                                        |
-| Apply/check migrations          | npm run db:migrate                                   |
-| Create original sample media    | npm run seed                                         |
-| Start API and studio            | npm run dev                                          |
-| Full quality gate               | npm run check                                        |
-| Focused API/domain tests        | npm test -- tests/api.test.ts                        |
-| Media fixtures / Python quality | npm run test:media; npm run check:python             |
-| Real browser workflow           | npm run test:e2e                                     |
-| Offline ranking evaluation      | npm run evaluate                                     |
-| Dependency audit                | npm audit --audit-level=high                         |
-| Container build                 | docker build -f infra/Dockerfile -t cliplane:local . |
-| Repo / issue / PR / checks      | gh repo view; gh issue list; gh pr view; gh run list |
+| Task                            | Command                                                 |
+| ------------------------------- | ------------------------------------------------------- |
+| Install JS/Python tooling       | npm ci; uv sync --locked --group dev                    |
+| Start local DB                  | npm run db:up                                           |
+| Apply/check migrations          | npm run db:migrate                                      |
+| Create original sample media    | npm run seed                                            |
+| Start API and studio            | npm run dev                                             |
+| Full quality gate               | npm run check                                           |
+| Decoder controller preflight    | npm run --silent decoder:preflight -- --image sha256:ID |
+| Focused API/domain tests        | npm test -- tests/api.test.ts                           |
+| Media fixtures / Python quality | npm run test:media; npm run check:python                |
+| Real browser workflow           | npm run test:e2e                                        |
+| Offline ranking evaluation      | npm run evaluate                                        |
+| Dependency audit                | npm audit --audit-level=high                            |
+| Container build                 | docker build -f infra/Dockerfile -t cliplane:local .    |
+| Repo / issue / PR / checks      | gh repo view; gh issue list; gh pr view; gh run list    |
 
 CI uses the Playwright-managed browser installed by its workflow after `npm ci`.
 `CHROMIUM_PATH` is an explicit override; the `/usr/bin/chromium` fallback is for
@@ -29,6 +30,29 @@ enabled rather than replacing them with HTTP-only or metadata-only assertions.
 
 Do not run a Next production build while filming a development server using the same
 .next directory. Stop/restart only task-owned processes and verify /api/health.
+
+The temporary Vitest-scoped Picomatch override mitigates GHSA-fc5q-39xc-vjpf
+using an independently reviewed exact artifact. Preserve its pin/integrity and the
+high-severity audit gate; [review scope](research/test-toolchain-security.md) and
+[upstream replacement #48](https://github.com/jaydenpiao/cliplane/issues/48) record
+compatibility and supply-chain limits. Separate bundled copies are outside that pin.
+
+## Decoder controller preflight
+
+Run `npm run --silent decoder:preflight -- --image sha256:<64 lowercase hex>` with a
+trusted immutable local helper image containing `/bin/sh` and `cat`, with no declared
+volumes. There is no implicit image pull or application/media execution. `--silent`
+keeps npm's wrapper out of the machine-readable JSON stream. Missing/unsupported
+controllers, invalid images, execution faults and uncertain cleanup exit 2.
+
+A passing result is controller readback and owned cleanup only; the report always
+sets `decoderIsolationQualified: false`. The current rootless runtime rejects at
+safe daemon discovery before creating a container. App native media execution and
+the full issue #2 isolation gate remain unchanged. See
+[research and evidence](research/decoder-controller-preflight.md) for prerequisites
+and remaining behavioral tests. The hosted container job runs the same preflight
+against its trusted built image to validate positive readbacks; it does not run
+untrusted media or establish the future decoder image/export boundary.
 
 ## Tools, skills and plugins
 
