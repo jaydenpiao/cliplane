@@ -245,7 +245,6 @@ export default function Studio() {
               <Menu size={21} />
             </button>
             <span className="breadcrumb">
-              Studio <ChevronRight size={13} />{" "}
               <strong>
                 {navigation.find((n) => n.id === view)?.label ||
                   (view === "rights"
@@ -288,9 +287,8 @@ export default function Studio() {
           {view === "overview" && (
             <section className="page-heading studio-heading">
               <div>
-                <span className="eyebrow">YOUR CREATIVE WORKSPACE</span>
-                <h1>From recording to remarkable.</h1>
-                <p>Find your moment. Shape the story. Make the final call.</p>
+                <h1>Your studio</h1>
+                <p>Review and shape your clips.</p>
               </div>
               <button type="button" className="button primary" onClick={() => setUploading(true)}>
                 <Plus size={18} /> Upload recording
@@ -319,9 +317,6 @@ export default function Studio() {
                     {view === "overview" ? "Your shortlist" : "All moments"}
                     <span className="count-pill">{moments.length}</span>
                   </h2>
-                  {view === "overview" && (
-                    <p>Promising moments from your recordings, ready for a closer look.</p>
-                  )}
                 </div>
                 {view === "overview" && (
                   <button type="button" className="button text" onClick={() => navigate("moments")}>
@@ -951,16 +946,12 @@ function MomentCard({ moment: m, onClick }: { moment: Moment; onClick: () => voi
         )}
       </button>
       <div className="moment-card-body">
-        <div className="game-line">
-          <span className="game-dot" />
-          {m.game}
-          <span>·</span>
-          <span>{m.creator}</span>
-        </div>
         <button type="button" className="moment-title" onClick={onClick}>
           {m.title}
         </button>
-        <p className="moment-source">{m.source_title}</p>
+        <p className="moment-source" title={`${m.creator} · ${m.source_title}`}>
+          {m.creator} · {m.source_title}
+        </p>
         <div className="moment-card-footer">
           <span className={cleared ? "rights-ok" : "rights-pending"}>
             <ShieldCheck size={13} />

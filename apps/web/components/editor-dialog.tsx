@@ -43,7 +43,7 @@ export function EditorDialog({
   const [tab, setTab] = useState<"edit" | "rights">("edit"),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
-    [notice, setNotice] = useState(""),
+    [notice, setNotice] = useState<"saved" | "rejected" | "export" | null>(null),
     [reason, setReason] = useState("Reviewed by creator"),
     [showRender, setShowRender] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
@@ -51,6 +51,20 @@ export function EditorDialog({
   const editDirty = title !== moment.title || JSON.stringify(plan) !== JSON.stringify(moment.edit_plan);
   const rightsDirty = JSON.stringify(rights) !== JSON.stringify(moment.rights);
   const blockers = approvalBlockers(rights, plan);
+  const exportNotice =
+    moment.status === "rendered"
+      ? "Your export is ready to download."
+      : moment.status === "rendering"
+        ? "Approved. Your export is rendering in the background."
+        : "";
+  const feedback =
+    notice === "export"
+      ? exportNotice
+      : notice === "saved"
+        ? "Changes saved. Review this revision before export."
+        : notice === "rejected"
+          ? "Moment rejected. Your feedback is recorded."
+          : "";
   const incoming = JSON.stringify({ plan: moment.edit_plan, title: moment.title, rights: moment.rights });
   useEffect(() => {
     const current = JSON.parse(incoming);
@@ -61,7 +75,7 @@ export function EditorDialog({
   async function action(name: string, work: () => Promise<void>) {
     setBusy(name);
     setError("");
-    setNotice("");
+    setNotice(null);
     try {
       await work();
       await onUpdate();
@@ -237,8 +251,7 @@ export function EditorDialog({
           </div>
           <div className="editor-controls">
             <div className="editor-title">
-              <span className="eyebrow">THE FINAL CUT</span>
-              <h2 id="editor-title">Shape your moment.</h2>
+              <h2 id="editor-title">Clip editor</h2>
             </div>
             <div className="tabbar">
               <button type="button" className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")}>
@@ -523,9 +536,9 @@ export function EditorDialog({
             {error}
           </div>
         )}
-        {notice && (
+        {feedback && !editDirty && !rightsDirty && (
           <div className="editor-feedback success-note" role="status">
-            {notice}
+            {feedback}
           </div>
         )}
         <footer className="editor-footer">
@@ -549,7 +562,7 @@ export function EditorDialog({
                       expectedRightsRevision: revisions.rightsRevision,
                     }),
                   });
-                  setNotice("Moment rejected. Your feedback is recorded.");
+                  setNotice("rejected");
                 })
               }
             >
@@ -562,7 +575,7 @@ export function EditorDialog({
               onClick={() =>
                 void action("save", async () => {
                   await save();
-                  setNotice("Changes saved. Review this revision before export.");
+                  setNotice("saved");
                 })
               }
             >
@@ -592,7 +605,7 @@ export function EditorDialog({
                       }),
                     });
                     await api(`/candidates/${moment.id}/render`, { method: "POST", body: "{}" });
-                    setNotice("Approved. Your export is rendering in the background.");
+                    setNotice("export");
                   })
                 }
               >

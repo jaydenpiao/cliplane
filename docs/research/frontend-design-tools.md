@@ -53,3 +53,12 @@ Playwright/screenshots/axe verification and the repository-local UI skill remain
 The user left Codex Security uninstalled. CodeQL, secret scanning and focused independent
 reviews remain the current security evidence. Do not repeat installation suggestions
 unless the user requests them or a new concrete capability gap appears.
+
+## Compact studio pass
+
+The user's latest direction emphasizes modern, simple and aesthetic. Screenshot review
+found excessive mobile introduction height, repeated card provenance and a tall editor
+heading. The pass uses existing tokens/components and removes redundant presentation;
+no library migration or dependency was needed. Installed Next16.4.6 CSS guidance and the
+pinned Vercel focus/content-overflow guidance above were consulted. Fresh browser
+evidence uses an isolated synthetic schema; see docs/images and docs/verification.md.

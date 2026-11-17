@@ -1,17 +1,24 @@
 {
-  "recordedAt": "2026-11-16T17:45:39.695Z",
-  "runtime": "Local light studio working tree for PR #31; actual UI workflow, no simulated results.",
-  "source": "Original procedural motion and generated engine audio. No game footage, external assets or personal credentials.",
+  "recordedAt": "2026-11-17T01:32:12.553Z",
+  "runtime": "Local studio polish working tree for issue #43; actual UI workflow, no simulated results.",
+  "browser": {
+    "width": 1600,
+    "height": 900,
+    "timezone": "America/Los_Angeles",
+    "heading": "Your studio"
+  },
+  "source": "Checked-in original procedural motion and generated engine audio. No game footage or external assets.",
+  "sourcePath": "packages/test-fixtures/nightdrift-original.mp4",
   "sourceSha256": "00252edb7bb38a20cf8b2f4504ce4afd54cdc04333d9e8a13496ad23d6e56a46",
   "workflow": [
     "authorized upload and analysis before visible recording",
     "candidate selection",
-    "trim and vertical crop",
+    "trim to 5\u201313 seconds and vertical crop",
     "caption",
     "independent rights review",
     "approval",
     "render",
-    "preview",
+    "rendered preview",
     "download",
     "actual exported file playback"
   ],
@@ -42,25 +49,43 @@
       "status": 202
     }
   ],
+  "sourceStatus": "ready",
+  "candidateStatus": "rendered",
+  "editRevision": 2,
   "editPlan": {
     "startMs": 5000,
     "endMs": 13000,
     "layout": "crop",
     "caption": "That was a close one."
   },
-  "sourceStatus": "ready",
-  "candidateStatus": "rendered",
-  "editNotes": "Normal interaction speed; processing waits cut. Restrained focal zooms; no title slides or music. Import occurred before the visible take.",
-  "demo": {
-    "durationSeconds": 39.2,
-    "bytes": 4737779,
+  "readyStatus": {
+    "text": "Your export is ready to download.",
+    "assertedAfterDownloadAppeared": true
+  },
+  "editing": {
+    "speedChanges": false,
+    "processingWaitsCut": true,
+    "disclosure": "Synthetic motion demo \u00b7 Waits cut",
+    "ending": "Full actual downloaded eight-second export"
+  },
+  "visualReview": {
+    "sampledDemoSeconds": [
+      1.4, 3.7, 9.217, 15.7, 20.9, 25.35, 28.267, 26.767, 30.917, 35.767, 32.267, 39.167
+    ],
+    "status": "Inspected actual source/rendered/export screenshots and sampled final frames.",
+    "readyStatus": "Your export is ready to download.",
+    "readyStatusAssertion": "passed"
+  },
+  "sourceMedia": {
+    "durationSeconds": 24.0,
+    "bytes": 6052505,
     "codec": "h264",
-    "width": 1600,
-    "height": 900,
+    "width": 1280,
+    "height": 720,
     "fps": "30/1",
     "pixelFormat": "yuv420p",
-    "audioStreams": 0,
-    "sha256": "13e889f6dad985493e21bfba567edb01f89a868702faa4b2e2243ab27108a540",
+    "audioStreams": 1,
+    "sha256": "00252edb7bb38a20cf8b2f4504ce4afd54cdc04333d9e8a13496ad23d6e56a46",
     "fullDecode": "passed",
     "fastStart": true
   },
@@ -76,5 +101,42 @@
     "sha256": "40c8dd91fc6efc6fd4084f374365d46afb8714505224cb9dee8f51ca916abd75",
     "fullDecode": "passed",
     "fastStart": true
+  },
+  "demo": {
+    "durationSeconds": 39.766667,
+    "bytes": 4783059,
+    "codec": "h264",
+    "width": 1600,
+    "height": 900,
+    "fps": "30/1",
+    "pixelFormat": "yuv420p",
+    "audioStreams": 0,
+    "sha256": "61b55eccddd04160fe55689a2eb70915ab81a25f86670932f76132f7899c1586",
+    "fullDecode": "passed",
+    "fastStart": true
+  },
+  "poster": {
+    "bytes": 233003,
+    "sha256": "78800c6b6768a75a474d1b7a4a91ae8bf3caf5068cdebd6de8be397be9a4de29",
+    "width": 1600,
+    "height": 900,
+    "source": "Actual rendered-preview screenshot from this take."
+  },
+  "captureBundle": {
+    "bytes": 16104,
+    "sha256": "c04011b7163f869589b89030b64e3067ac663e992214692f6abc838a21a10791",
+    "textFiles": 9,
+    "allowlist": [
+      "capture.mjs",
+      "edit.py",
+      "generate_source.py",
+      "verify.py",
+      "plan.json",
+      "action-timings.json",
+      "resolved-edit-plan.json",
+      "workflow-evidence.json",
+      "README.md"
+    ],
+    "validation": "passed"
   }
 }
