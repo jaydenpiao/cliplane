@@ -8,7 +8,8 @@ clear review controls and useful workspace content in the first viewport.
 - Self-hosted Geist Sans through `geist/font/sans`. Readable labels and metadata;
   clear heading hierarchy, consistent spacing and limited decorative copy.
 - Media cards lead into a focused player with contextual editing and rights controls.
-  Source framing is preserved; only a rendered export shows final composition.
+  Source masters stay unchanged. A live draft preview responds to framing and
+  captions; separately labelled rendered output is the final composition.
 - Use compact task headings and one quiet provenance line per card. Keep the first
   clip visible early on mobile; editor headings leave room for the actual controls.
 - Desktop has a compact sidebar and three-column library; mobile uses one column

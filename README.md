@@ -65,14 +65,19 @@ It is shared local sample data: never put private footage in the demo workspace.
 - Responsive studio, search/filtering, recording library, processing activity and
   real workflow metrics. No invented audience analytics or virality claims.
 - Versioned declarative edits: trim (100 ms–3 minutes), original/9:16 crop/blur/facecam,
-  normalized manual crop, timed captions, audio mute. The editor labels source preview
-  separately from the final rendered composition.
+  normalized manual crop, timed captions and audio mute. A live draft canvas responds
+  immediately; actual reviewed rendered output stays separately labelled.
+- Genuine source filmstrip, pointer/keyboard scrub and trim, and authenticated clip
+  links that survive reload and browser history. Temporary refresh failures preserve
+  unsaved drafts; access loss clears private content.
 - Separate source/game/music/likeness/third-party/spoiler/embargo states. Human approval
   checks blockers and exact edit/rights revisions. Stale forms receive HTTP 409.
 - Idempotent H.264/AAC MP4 rendering, reviewed authenticated previews/downloads including
   byte ranges; edits and rights changes revoke approvals and downloads of older edits.
 - Raw retention/deletion sweeps with retryable storage cleanup and an audit trail.
 - Offline ranking evaluation, media fixture tests, integration tests and CI.
+
+![Live editing workbench](docs/images/editor-review.png)
 
 ## Deliberate boundaries
 

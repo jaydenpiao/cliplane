@@ -1,140 +1,136 @@
 # Current handoff
 
-Updated: 2026-11-16 (America/Los_Angeles). Verify git status, HEAD and GitHub checks first.
-Read only the selected issue and relevant area docs; do not reload the whole report.
+Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying on this record.
 
-## Goal and next increment
+## Goal and current increment
 
-Current delivery: #43 compact studio UI and export feedback, branch feat/studio-polish.
-The user prioritized a modern, simple, aesthetic interface. Inspect the branch's PR
-before repeating work. After integration, resume #2's actual decoder sandbox, qualified
-resource enforcement and bounded artifact export. The local rootless Docker daemon
-does not enforce per-job cgroups; configured flags are not proof of enforcement.
-Storage/job adapters follow before a Cloud Run deployment. The owner authorizes
-reviewed passing merges to main and cloud setup within a reviewed resource plan.
-Work one bounded implementation issue at a time. A merge is not a deployment.
-Keep personal account information and distribution drafts outside public GitHub.
+The owner prioritizes modern, simple light UI and professional demos informed by
+actual startup websites/product footage, especially relevant YC companies. Treat
+messages as cumulative tasks unless explicitly cancelled. Continue autonomously,
+delegate independent work and keep one implementation issue active.
 
-## Delivered
+Issue #45: focused editing workbench. Branch `feat/focused-workbench` is based on
+main `36d70b5e107c5acba0cc9f50e0dda4d5ccd84367`. The prior #43/PR #44 compact pass is
+merged; it was not final design acceptance. Source implementation, local acceptance, independent review and the final demo are
+complete. Reviewed source commit: `026348897cdc265dba52241433f2873407666ab6`.
+Integration record: [PR #46](https://github.com/jaydenpiao/cliplane/pull/46).
+Use its live head/check/merge metadata; do not repeat the implementation.
 
-- Public Apache-2.0 repository: https://github.com/jaydenpiao/cliplane
-- PR #31 merged: light, responsive upload/library/editor; PostgreSQL durable jobs;
-  actual media analysis; trim/layout/captions/mute; independent rights review;
-  revision-bound human approval; FFmpeg preview/download/deletion.
-- Reserved-demo auth bypass fixed; modal focus, keyboard and busy-state behavior tested.
-- Public 39.2s working demo: docs/demos/cliplane-demo.mp4. It uses original synthetic
-  motion footage and shows a real eight-second vertical export. No AI analysis claim.
-- PR #40 merged as 4ba8b9e: streaming upload relay, read-only cloud discovery workflow,
-  owner configuration helpers, local UI skill and current AI/design research.
-- PR #41 merged as e603dc6: verified immutable GitHub OIDC subject correction.
-- PR #42 merged as af65a08: process cancellation, lease/COMMIT fencing and shutdown drain.
-- The relay fixes Next's external rewrite body cap: an actual 25 MB web upload changed
-  from 500 after 30s to 201 in 0.501s. Four relay regressions and the full browser upload
-  above 10 MB pass. Preserve streaming; do not buffer multi-gigabyte files in Next.
+Read [the spec](../superpowers/specs/2026-11-17-focused-workbench-design.md),
+[plan](../superpowers/plans/2026-11-17-focused-workbench.md), DESIGN.md and the local
+cliplane-ui skill for UI changes. [Reference research](../research/workbench-ui.md)
+distinguishes verified YC identity, observed pages, sampled Tella footage and capture
+limits. No third-party assets or unsupported AI claims are used.
 
-## Verified cloud discovery
+## Implemented and verified in this session
 
-The owner pulled e603dc6 and successfully reran bootstrap --apply. Cloud discovery
-run43974596592 passed on main e603dc6 in staging: short-lived federation, ACTIVE
-project identity and five required APIs verified. The four explicit provisioning/IAM
-permission checks returned absent; this is not a full IAM audit. No workloads were
-created and no Cliplane database/deployment is configured. The discovery account
-cannot administer IAM or provision the checked resource types.
+- Live draft canvas for original/crop/blur/facecam, clip-relative captions and mute.
+  Actual reviewed rendered output remains separately labelled and authoritative.
+- Genuine bounded source-frame sampling, pointer/keyboard scrub and trim, numeric
+  alternatives and authenticated `?clip=UUID` links with reload/history support.
+- Compact inspector, preserved dialog focus/Escape and corrected mobile auth-entry
+  scroll. Mobile composition names remain reachable by normal dialog scrolling.
+- Exact edit/rights revision approval, independent rights, immutable masters and
+  private media remain intact. Dirty drafts hide old output/download feedback.
+- A real regression reproduced transient detail HTTP 500 closing the editor and
+  losing drafts. The fix preserves the draft, shows an in-dialog retry warning,
+  recovers on 200 and clears private detail on authoritative 401/403/404.
+- `npm run check` passes: 105 TS/API/helper tests, 13 Python/media tests, lint/types,
+  Ruff/mypy and production build. Dev was stopped during the build.
+- Final `npm run test:e2e` passes all six workflows on settled source. Actual downloaded
+  output was decoded/probed: 4s, 720×1280, muted, with expected caption timing/pixels.
+- Independent task and whole-change source reviews approve; no material finding
+  remains. Four viewport reviews and affected follow-up captures verify loaded media,
+  eight real frames, no overflow, keyboard/focus and axe scans with zero violations.
+  These observations do not establish full accessibility conformance.
 
-The earlier legacy-subject failure and provider-update request are resolved. Do not
-repeat owner OAuth/bootstrap or create workloads under discovery access. Private
-configuration remains outside Git; never publish owner IAM, billing or target details.
-See docs/runbooks/google-cloud.md for the supported dispatch/setup procedure.
+Evidence: `/workspace/work/logs/workbench-final-check.log`, `workbench-final-e2e.log`,
+`workbench-refresh-failure-{red,green}.log`; accepted screenshots under
+`/workspace/work/workbench-v5/after-final`. Reviews are
+`/workspace/work/workbench-{task1,final}-review.md`. Fresh unchanged-base checks passed
+before implementation; do not repeat unchanged passing evidence without a reason.
 
-## Verification
+## Demo and integration checkpoint
 
-UI pass: npm run check passes 94 TS/API/helper and 13 Python/media tests, lint/types,
-Ruff/mypy and production build. Two Chromium workflows pass, with five axe scans and
-actual upload/edit/rights/render/download/deletion. Demo review found a stale rendering
-notice after completion; a browser regression failed first, then passed after feedback
-was derived from current status. Unsaved draft feedback also failed first, then passed
-by hiding notices when edits or rights differ from the saved revision. The affected
-workflow was replayed.
+The canonical [45-second demo](../demos/README.md) is complete: 44.733s,
+1600×900, H.264/30fps. It opens with the actual result, shows the real editing,
+rights/revision review, render and download, and ends with the full eight-second
+720×1280 downloaded export. Source/export/demo fully decode and use fast-start;
+saved final Chromium playback advanced. The contact sheet and eleven actual final
+frames were inspected. Demo is silent; export retains generated original audio.
+Poster, sanitized evidence/hashes and the nine-file text replay bundle are consistent.
+Raw take02, credentials and browser profiles remain private under
+`/workspace/work/workbench-v5/demo`; do not record again without a new reason.
 
-Independent source/visual review found no material blockers: no overflow at 320, 390,
-768 and 1440px, Geist/media loaded, actual source playback advanced, focus/Tab/Escape
-behavior and rights-note/footer reachability passed. First mobile thumbnail is y418px
-at390px, about147px higher than the earlier screenshot. Long-text stress stayed in browser DOM.
-Canonical screenshots use an isolated original-media sample dataset. See docs/verification.md.
+The prescribed projectless output directory is not writable here. Link canonical
+public GitHub demo/screenshots. Source, tests, images, research/spec/plan and demo are
+ready for integration. Inspect the live PR for `feat/focused-workbench`: if absent,
+open it linked to #45; if pending, inspect current-head checks; if merged, do not
+repeat #45 and resume #2. Require verify/browser/container/Secrets/CodeQL and verified
+jaydenpiao attribution before the authorized merge. A merge does not imply deployment.
 
-Current logs: /workspace/work/logs/studio-polish-check.log, studio-polish-e2e.log,
-studio-notice-red.log, studio-notice-draft-red.log and studio-notice-green.log.
-Review captures/measurements: /workspace/work/design-v3/after. Demo's final corrected
-take: /workspace/work/design-v3/demo-final; canonical hashes/properties are in
-docs/demos/evidence.json. Never mix mutable inputs from concurrent captures.
-Final hosted verify/browser/container, Secrets and CodeQL must pass before merge.
-Use live checks/merge state as authority; full sandbox/public-beta gates remain open.
+CI browser checkpoint: the initial hosted run selected ambient Chromium 157
+instead of the installed Playwright 159 runtime and failed real MP4 playback.
+Exact downloaded 159 decodes those same authenticated proxy/export bytes. The
+reviewed fix makes the system fallback local-only while preserving `CHROMIUM_PATH`.
+The workflow still installs the lockfile-matched managed browser. Inspect current-head
+CI for the fix; never merge a failed browser run or weaken its playback assertions.
 
-PR #42's 42 focused process/watcher/job tests are included in the 94 above; they cover
-real PostgreSQL lock/expiry/COMMIT races and actual FFmpeg descendant termination.
-Its two reproduced review findings were fixed. See docs/security/decoder-lifecycle.md.
+## Runtime and continuation
 
-## Access and task management
+Only this fresh clone exists at `/workspace/work/cliplane`; the older environment's
+uncommitted worktree/private gameplay/helpers are not recovered. Do not assume old
+absolute paths or feature-tip ancestry establish completion; prior integrations were
+squash merges. Preserve private recovery refs locally; never mirror/push them.
 
-- Repo writes work; commit identity is jaydenpiao's verified no-reply address.
-- Managed api.github.com routing substitutes the app credential. Two owner OAuth
-  approvals did not grant Projects/settings/Actions-variable writes through that route.
-  Do not repeat OAuth or attempt to bypass it.
-- No native Project or branch ruleset is claimed. Owner-run helpers outside that route:
-  scripts/github/setup-project.mjs and scripts/cloud/configure-github.mjs. Both default
-  to preview. See docs/project/board.md and docs/runbooks/google-cloud.md.
-- Contents-write repository dispatch works. Staging environment was auto-created;
-  its main-only GitHub policy is not configured. WIF independently pins main/staging.
-- #39 upload regression is Done. #27 discovery is verified; environment separation
-  remains open. #30 Project and #22 repository controls remain blocked on owner
-  configuration. #29 QA is partial.
-- #43 is the selected UI increment; #2's remaining sandbox work is Ready afterward.
-  Account lifecycle, recovery and release gates remain open. Cloud SQL17 is planned;
-  the local database is PostgreSQL17. See docs/security/decoder-lifecycle.md.
+Task PostgreSQL 17 is healthy on local54329. Current API/web use ports4000/3000 via
+`node scripts/dev.mjs`, recorded supervisor PID87186 in
+`/workspace/work/logs/workbench-dev-supervisor.json`. Check process identity/health
+before stopping or restarting. Stop the actual Node supervisor, not only its npm
+parent, before a build sharing `.next`. Original synthetic sample data is seeded.
 
-## Design, media and AI
+The hourly bounded continuation task is enabled in this thread; the old daily task
+was paused. Scheduled prompts resumed this environment; duplicates continue the same
+increment rather than create competing work. Scratch ledger:
+`/workspace/work/iteration-ledger.md`. Checkpoint partial work if usage/access blocks.
+Do not spin, repeat passed checks or buy upgrades.
 
-Read DESIGN.md and .agents/skills/cliplane-ui/SKILL.md before UI work. Current direction
-is modern light/violet, with self-hosted Geist and Lucide. Official Anthropic/Vercel
-guidance and evaluated libraries are recorded in docs/research/frontend-design-tools.md.
-Studio headings are compact; cards have one provenance line; the editor heading leaves
-room for review fields. No new UI dependency was added. README now clones current main.
-Context7 is callable. Product Design skills are installed, but their dedicated Browser
-interface is unavailable here; no plugin audit is claimed. Codex Security is uninstalled.
-Existing local browser/axe/security checks continue independently.
+## Next engineering work and boundaries
 
-Actual Call of Duty: Black Ops II footage was acquired under the recording creator's
-CC BY4.0 grant. Private evidence is in /workspace/work/gameplay-v3. Playback/editing
-worked; underlying game rights remain unknown, approval is disabled, and no public
-gameplay render/publication is claimed. Raw metadata includes uploader contact details;
-keep it private. Public demo footage is original synthetic material.
+After #45 integration, resume #2 decoder isolation: native process cancellation and
+lease/COMMIT fencing are delivered, but per-job filesystem/network isolation,
+behaviorally qualified aggregate quotas and bounded artifact export remain open.
+Older rootless Docker ignored cgroup flags; qualify the current runtime rather than
+assuming flags enforce limits. Then storage/job adapters precede managed deployment.
+See [decoder lifecycle](../security/decoder-lifecycle.md), the selected issue and
+[release workflow](../project/workflow.md). Runtime ASR/model calls and publishing are
+not integrated; CPU int8 faster-whisper/VAD research is saved for #4.
 
-Low-cost ASR research: docs/research/clip-ai-options.md and issue #4. Recommend CPU
-int8 faster-whisper plus VAD first. Local tiny/base speech/silence/offset smoke tests ran;
-word timing instability and narrow benchmark limits are documented. Runtime ASR is
-not integrated. No paid model calls occurred. Gemini credit eligibility depends on
-the actual grant/account; do not assume welcome credits cover model charges.
+Keyless read-only cloud discovery run43974596592 passed main `e603dc6` in staging;
+its result was reverified. It established project/API discovery, not provisioned
+Cliplane workloads or a full IAM audit. This environment has no direct gcloud/GCP
+connector or observed credentials. Do not repeat resolved OAuth/bootstrap/discovery
+without a new reason. Use the [cloud runbook](../runbooks/google-cloud.md) and reviewed
+resource/IAM/cost/rollback plan; keep account/project/billing identifiers private.
+
+Native Projects #30 and remote repository controls #22 remain owner-configuration
+blockers under managed credential routing; no native board/ruleset is claimed.
+Use documented owner helpers outside that route, not repeated OAuth or bypasses.
+#27 environment separation, #29 broader QA, account lifecycle, restore/rollback and
+operator/legal review remain open. Reviewed passing merges are authorized.
+
+Prior private CoD recording permission did not establish underlying game rights;
+those files are absent here. Do not stage approval/render/publication for unknown
+rights. Public demos use original synthetic media. Keep uploader/account/social
+information and private distribution drafts outside this public repository.
 
 ## Resume
 
 ```sh
 git status --short
 git log -3 --oneline
-gh pr list --repo jaydenpiao/cliplane --state all --head feat/studio-polish
-gh run list --repo jaydenpiao/cliplane --limit 5
-tail -20 /workspace/work/logs/studio-polish-check.log
+gh pr view 46 --repo jaydenpiao/cliplane --json state,mergedAt,headRefOid
+gh pr checks 46 --repo jaydenpiao/cliplane
+cat /workspace/work/iteration-ledger.md
+curl -fsS http://localhost:4000/api/health
 ```
-
-Preserve private recovery refs under refs/cliplane-* locally; never push/mirror them.
-Implementation worktree: /workspace/work/cliplane-decoder; the original checkout
-/workspace/work/cliplane remains on main. Check both and git worktree list before cleanup
-or resuming; do not assume an old feature branch is unmerged. The PostgreSQL Docker
-container persists. Environment reconnects can stop API/web processes; check health
-and restart them when needed. Do not build Next while its server uses the same .next.
-Isolated UI preview: localhost3001/API4001; private operator helper
-work/studio-polish-run.mjs and /workspace/work/design-v3/preview-env.json. The helper's
-check mode uses the default relay port; build restores the preview configuration.
-Evidence and private owner configuration live outside Git under /workspace/work.
-A daily bounded continuation task is configured; its future execution environment is
-not verified. If usage/agents are unavailable, resume saved evidence rather than looping
-on blocked work. Update this handoff and issue states after each completed increment.
