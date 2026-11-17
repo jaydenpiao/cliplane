@@ -176,6 +176,26 @@ describe("decoder controller preflight (fake engine protocol evidence)", () => {
     expect(fake.calls.some((args) => args[1] === "create")).toBe(false);
   });
 
+  it("inspects a no-volume image when Docker omits the optional Config.Volumes map key", async () => {
+    const fake = engine();
+    const runner: DockerCommandRunner = async (args, limits) => {
+      if (args[0] === "image") {
+        // Docker's inspect formatter errors on dot access to an absent map key;
+        // index access returns nil, encoded as null. Confirmed read-only on Docker29.
+        const format = args[args.indexOf("--format") + 1];
+        if (format.includes(".Config.Volumes")) return { code: 1, stdout: "" };
+        if (!format.includes('index .Config "Volumes"')) throw new Error("unexpected image metadata query");
+      }
+      return fake.runner(args, limits);
+    };
+    expect(await runDecoderPreflight({ image, runner })).toMatchObject({
+      verdict: "preflight_passed",
+      cleanup: "removed",
+      reasonCodes: [],
+      decoderIsolationQualified: false,
+    });
+  });
+
   it.each(["ubuntu:latest", "sha256:123", `sha256:${"A".repeat(64)}`, "", `${image};echo secret`])(
     "rejects mutable or malformed images before Docker",
     async (invalidImage) => {

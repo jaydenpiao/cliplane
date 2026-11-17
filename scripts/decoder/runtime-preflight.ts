@@ -9,7 +9,9 @@ const CONTAINER_ID = /^[a-f0-9]{64}$/;
 const OWNER_LABEL = "io.cliplane.decoder-preflight";
 const INFO_FORMAT =
   '{"cgroupVersion":{{json .CgroupVersion}},"cgroupDriver":{{json .CgroupDriver}},"serverVersion":{{json .ServerVersion}}}';
-const IMAGE_FORMAT = '{"id":{{json .Id}},"volumes":{{json .Config.Volumes}}}';
+// Docker omits the optional Volumes map key for images without declared volumes.
+// Dot access errors for an absent key; index returns nil and preserves JSON null.
+const IMAGE_FORMAT = '{"id":{{json .Id}},"volumes":{{json (index .Config "Volumes")}}}';
 const OWNERSHIP_FORMAT = `{"id":{{json .Id}},"owner":{{json (index .Config.Labels "${OWNER_LABEL}")}}}`;
 const PROBE =
   "set -eu; cat /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpu.max /sys/fs/cgroup/pids.max /sys/fs/cgroup/memory.swap.max";
