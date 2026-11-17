@@ -4,25 +4,52 @@ Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying 
 
 ## Goal and current increment
 
-The owner prioritizes modern, simple light UI and professional demos informed by
-actual startup websites/product footage, especially relevant YC companies. Treat
-messages as cumulative tasks unless explicitly cancelled. Continue autonomously,
-delegate independent work and keep one implementation issue active.
+Treat user messages as cumulative tasks unless cancelled. Keep modern, simple light
+UI and genuine startup-informed demos in the backlog. PR #46 is merged as main
+`d4e871bf80fd2a84c202c9d2d41019cdb357ad86`; Quality, Secrets and CodeQL on that main
+commit passed. #45 is closed Done. Do not repeat the delivered workbench/demo.
 
-Issue #45: focused editing workbench. Branch `feat/focused-workbench` is based on
-main `36d70b5e107c5acba0cc9f50e0dda4d5ccd84367`. The prior #43/PR #44 compact pass is
-merged; it was not final design acceptance. Source implementation, local acceptance, independent review and the final demo are
-complete. Reviewed source commit: `026348897cdc265dba52241433f2873407666ab6`.
-Integration record: [PR #46](https://github.com/jaydenpiao/cliplane/pull/46).
-Use its live head/check/merge metadata; do not repeat the implementation.
+Current bounded issue #2 increment: a standalone decoder controller preflight.
+Branch `feat/decoder-controller-preflight`, base `d4e871b`. It does not change app
+media execution or close full decoder isolation. Spec/plan:
+`docs/superpowers/{specs,plans}/2026-11-17-decoder-preflight*.md`.
 
-Read [the spec](../superpowers/specs/2026-11-17-focused-workbench-design.md),
-[plan](../superpowers/plans/2026-11-17-focused-workbench.md), DESIGN.md and the local
-cliplane-ui skill for UI changes. [Reference research](../research/workbench-ui.md)
-distinguishes verified YC identity, observed pages, sampled Tella footage and capture
-limits. No third-party assets or unsupported AI claims are used.
+Fresh safe runtime observation confirmed Docker29.9.2 rootless, cgroup v2, driver
+none. Requested64 MiB/0.5 CPU/16 PIDs read back8 GiB/2 CPUs/unlimited PIDs; flags
+silently succeeded. No stress ran; exact probe cleanup was verified. Sanitized
+private evidence: `/workspace/work/decoder-qualification/runtime-{report.md,evidence.json}`.
 
-## Implemented and verified in this session
+Implementation now exists in scripts/decoder and package command decoder:preflight.
+62 focused protocol/lifecycle/subprocess cases, scoped lint/types and the actual
+current-runtime nonzero rejection pass. The actual command rejects the daemon
+before image inspection/container creation, with decoderIsolationQualified:false.
+Independent source review and full check pass (167 TS/API/helper tests, 13 Python/media tests, lint/types, Ruff/mypy and production build); never infer full sandbox qualification.
+
+Hosted container CI wiring adds a real positive controller preflight against its
+trusted built app image's immutable ID; only the fixed shell probe executes. It is
+readback/cleanup evidence, not a dedicated decoder/hostile-media or aggregate-abuse
+qualification. This new hosted gate must pass before merge.
+
+Implementation owner: implement_decoder_preflight. CI wiring: wire_decoder_preflight_ci.
+Research/runtime docs: qualify_decoder_runtime. Root owns context/development/
+verification/spec/plan and integration; keep edits disjoint. Private reports/ledger:
+`/workspace/work/decoder-preflight/` and `/workspace/work/iteration-ledger.md`.
+
+Next: independent security/source review, fix concrete findings, run npm run check
+with the dev supervisor stopped before build, and open a partial #2 PR. Require all
+current-head checks and verified jaydenpiao attribution before authorized merge.
+Keep #2 In progress; next phases are a dedicated immutable runtime, bounded live
+artifact export, real enforcement tests and fail-closed upload/job integration.
+Reuse unchanged UI/demo evidence; no new recording is needed for this operator tool.
+
+## Previous workbench delivery
+
+Source implementation/review is complete at `026348897cdc265dba52241433f2873407666ab6`;
+[PR #46](https://github.com/jaydenpiao/cliplane/pull/46) integrated it plus demo/docs
+and the managed-CI-browser fix. Detailed UI research/spec/verification are linked
+from DESIGN.md, docs/research/workbench-ui.md and docs/verification.md.
+
+## Workbench implementation and verified evidence
 
 - Live draft canvas for original/crop/blur/facecam, clip-relative captions and mute.
   Actual reviewed rendered output remains separately labelled and authoritative.
@@ -64,9 +91,7 @@ Raw take02, credentials and browser profiles remain private under
 
 The prescribed projectless output directory is not writable here. Link canonical
 public GitHub demo/screenshots. Source, tests, images, research/spec/plan and demo are
-ready for integration. Inspect the live PR for `feat/focused-workbench`: if absent,
-open it linked to #45; if pending, inspect current-head checks; if merged, do not
-repeat #45 and resume #2. Require verify/browser/container/Secrets/CodeQL and verified
+integrated by PR #46. Do not repeat #45; continue the bounded #2 increment above. Require verify/browser/container/Secrets/CodeQL and verified
 jaydenpiao attribution before the authorized merge. A merge does not imply deployment.
 
 CI browser checkpoint: the initial hosted run selected ambient Chromium 157
@@ -84,8 +109,8 @@ absolute paths or feature-tip ancestry establish completion; prior integrations 
 squash merges. Preserve private recovery refs locally; never mirror/push them.
 
 Task PostgreSQL 17 is healthy on local54329. Current API/web use ports4000/3000 via
-`node scripts/dev.mjs`, recorded supervisor PID87186 in
-`/workspace/work/logs/workbench-dev-supervisor.json`. Check process identity/health
+`node scripts/dev.mjs`, recorded supervisor PID326932 in
+`/workspace/work/logs/cliplane-dev-supervisor.json`. Check process identity/health
 before stopping or restarting. Stop the actual Node supervisor, not only its npm
 parent, before a build sharing `.next`. Original synthetic sample data is seeded.
 

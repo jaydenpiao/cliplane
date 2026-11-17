@@ -17,6 +17,7 @@
     "db:up": "docker compose -f infra/compose.yml up -d --wait postgres",
     "db:migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts",
+    "decoder:preflight": "tsx scripts/decoder/preflight-cli.ts",
     "test": "vitest run",
     "test:media": "python -m unittest discover -s workers/media/tests -v",
     "typecheck": "tsc --noEmit",
