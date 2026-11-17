@@ -21,10 +21,23 @@ silently succeeded. No stress ran; exact probe cleanup was verified. Sanitized
 private evidence: `/workspace/work/decoder-qualification/runtime-{report.md,evidence.json}`.
 
 Implementation now exists in scripts/decoder and package command decoder:preflight.
-62 focused protocol/lifecycle/subprocess cases, scoped lint/types and the actual
+63 focused protocol/lifecycle/subprocess cases, scoped lint/types and the actual
 current-runtime nonzero rejection pass. The actual command rejects the daemon
 before image inspection/container creation, with decoderIsolationQualified:false.
-Independent source review and full check pass (167 TS/API/helper tests, 13 Python/media tests, lint/types, Ruff/mypy and production build); never infer full sandbox qualification.
+Independent source review and full check pass (168 TS/API/helper tests, 13 Python/media tests, lint/types, Ruff/mypy and production build); never infer full sandbox qualification.
+
+The first hosted attempt exposed an optional Docker image metadata lookup error.
+Reviewed fix `16091d58f53704c5a58c3a0348d73e47be673a52` uses a safe map lookup;
+declared-volume and other guards remain strict. Hosted controller readback/cleanup
+then passed on systemd/v2 (64 MiB/0.5 CPU/16 PIDs/swap0), still explicitly not full
+isolation qualification. Do not repeat the old formatter failure or weaken the gate.
+
+A new upstream Picomatch advisory also blocked the unchanged npm audit gate. A
+reviewed exact Vitest-only temporary pin and lock now pass audit and full checks;
+[review scope](../research/test-toolchain-security.md) and
+[replacement #48](https://github.com/jaydenpiao/cliplane/issues/48) record publisher,
+semantic and separate-bundled-copy limits. Preserve the pin until a reviewed official
+fix is available; zero audit alone is not all-copy remediation.
 
 Hosted container CI wiring adds a real positive controller preflight against its
 trusted built app image's immutable ID; only the fixed shell probe executes. It is
@@ -111,7 +124,7 @@ absolute paths or feature-tip ancestry establish completion; prior integrations 
 squash merges. Preserve private recovery refs locally; never mirror/push them.
 
 Task PostgreSQL 17 is healthy on local54329. Current API/web use ports4000/3000 via
-`node scripts/dev.mjs`, recorded supervisor PID326932 in
+`node scripts/dev.mjs`, recorded supervisor PID465397 in
 `/workspace/work/logs/cliplane-dev-supervisor.json`. Check process identity/health
 before stopping or restarting. Stop the actual Node supervisor, not only its npm
 parent, before a build sharing `.next`. Original synthetic sample data is seeded.

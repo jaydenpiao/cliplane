@@ -49,4 +49,6 @@
 - [x] Run npm run check with dev stopped before build. Reuse unchanged UI/demo evidence; hosted browser checks still gate the new head.
 - [ ] Commit with verified jaydenpiao attribution, open a partial #2 PR and require current-head quality/browser/container/Secrets/CodeQL before authorized merge. Keep #2 In progress and leave the next bounded adapter/qualification step explicit.
 
-Local acceptance: 62 focused cases and full check (167 TS/API/helper, 13 Python/media) pass; independent review approved. Hosted readback/cleanup and all other current-head gates remain required before integration. Keep #2 In progress.
+Local acceptance: 63 focused cases and full check (168 TS/API/helper, 13 Python/media) pass; independent review approved. Hosted readback/cleanup and all other current-head gates remain required before integration. Keep #2 In progress.
+
+Integration repairs: optional Docker volume metadata lookup is fixed and the hosted controller gate passed real readback/cleanup. The unchanged audit gate is satisfied by a separately reviewed exact Vitest-only matcher mitigation; replacement is tracked in #48. Latest full gate passes 168 TS/API/helper and 13 Python/media tests. Current-head CI still gates merge.

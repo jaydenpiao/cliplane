@@ -10,17 +10,22 @@ operator command checks eligible daemon/controller readbacks with bounded execut
 and owned immutable-ID cleanup; it always reports `decoderIsolationQualified: false`.
 Application media execution remains native and #2 stays In progress.
 
-- 62 focused fake-engine and real fake-executable protocol/lifecycle cases pass;
+- 63 focused fake-engine and real fake-executable protocol/lifecycle cases pass;
   these are not real decoder/aggregate enforcement tests.
 - One actual local command exits 2 with `daemon_unsupported` and `cleanup: not_needed`
   before image inspect/create/start. Fresh independent readback evidence confirmed
   the local rootless driver-none runtime ignores per-job quotas; no stress ran.
 - Safe real missing-ID inspection verified the Docker not-found protocol without
   creating a container. Raw diagnostics stay outside the report/repository.
-- Independent source review passes. Full check passes: 167 TS/API/helper tests,
+- Independent source review passes. Full check passes: 168 TS/API/helper tests,
   13 Python/media tests, lint/types, Ruff/mypy and production build. The hosted
   positive readback/cleanup gate remains a required current-head CI check; hosted
   success is still only controller preflight.
+- Hosted controller check passed on Docker29.4.2/systemd/cgroup v2: memory67108864,
+  CPU50000/100000, PIDs16, swap0 and owned cleanup removed; the report still says
+  `decoderIsolationQualified: false`. Current-head checks remain required after updates.
+- The high-severity dependency audit passes with the reviewed exact Vitest-only
+  matcher pin; [scope and follow-up](research/test-toolchain-security.md).
 - UI, app/media, rights/revision/lease behavior and inspected demo are unchanged;
   reuse their passing evidence and retain all hosted browser/security gates.
 

@@ -31,6 +31,12 @@ enabled rather than replacing them with HTTP-only or metadata-only assertions.
 Do not run a Next production build while filming a development server using the same
 .next directory. Stop/restart only task-owned processes and verify /api/health.
 
+The temporary Vitest-scoped Picomatch override mitigates GHSA-fc5q-39xc-vjpf
+using an independently reviewed exact artifact. Preserve its pin/integrity and the
+high-severity audit gate; [review scope](research/test-toolchain-security.md) and
+[upstream replacement #48](https://github.com/jaydenpiao/cliplane/issues/48) record
+compatibility and supply-chain limits. Separate bundled copies are outside that pin.
+
 ## Decoder controller preflight
 
 Run `npm run --silent decoder:preflight -- --image sha256:<64 lowercase hex>` with a
