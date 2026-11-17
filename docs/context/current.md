@@ -10,7 +10,8 @@ UI and genuine startup-informed demos in the backlog. PR #46 is merged as main
 commit passed. #45 is closed Done. Do not repeat the delivered workbench/demo.
 
 Current bounded issue #2 increment: a standalone decoder controller preflight.
-Branch `feat/decoder-controller-preflight`, base `d4e871b`. It does not change app
+Branch `feat/decoder-controller-preflight`, base `d4e871b`; source commit
+`719f940ced65e2a0956b929a0b0de043eeda3f87`, integration [PR #47](https://github.com/jaydenpiao/cliplane/pull/47). It does not change app
 media execution or close full decoder isolation. Spec/plan:
 `docs/superpowers/{specs,plans}/2026-11-17-decoder-preflight*.md`.
 
@@ -35,9 +36,10 @@ Research/runtime docs: qualify_decoder_runtime. Root owns context/development/
 verification/spec/plan and integration; keep edits disjoint. Private reports/ledger:
 `/workspace/work/decoder-preflight/` and `/workspace/work/iteration-ledger.md`.
 
-Next: independent security/source review, fix concrete findings, run npm run check
-with the dev supervisor stopped before build, and open a partial #2 PR. Require all
-current-head checks and verified jaydenpiao attribution before authorized merge.
+Independent security/source review and full check pass. Next: inspect PR #47
+current-head checks, including real controller readback/cleanup in the hosted
+container job; require all checks and verified jaydenpiao attribution before
+authorized merge. If merged, do not repeat this preflight increment.
 Keep #2 In progress; next phases are a dedicated immutable runtime, bounded live
 artifact export, real enforcement tests and fail-closed upload/job integration.
 Reuse unchanged UI/demo evidence; no new recording is needed for this operator tool.
@@ -154,8 +156,8 @@ information and private distribution drafts outside this public repository.
 ```sh
 git status --short
 git log -3 --oneline
-gh pr view 46 --repo jaydenpiao/cliplane --json state,mergedAt,headRefOid
-gh pr checks 46 --repo jaydenpiao/cliplane
+gh pr view 47 --repo jaydenpiao/cliplane --json state,mergedAt,headRefOid
+gh pr checks 47 --repo jaydenpiao/cliplane
 cat /workspace/work/iteration-ledger.md
 curl -fsS http://localhost:4000/api/health
 ```
