@@ -60,6 +60,7 @@ export function EditorDialog({
   const rightsDirty = JSON.stringify(rights) !== JSON.stringify(moment.rights);
   const blockers = approvalBlockers(rights, plan);
   const renderVisible = showRender && !editDirty && !rightsDirty && moment.status === "rendered";
+  const verticalExportSize = plan.profile === "preview" ? "360 × 640" : "720 × 1280";
   const exportNotice =
     moment.status === "rendered"
       ? "Your export is ready to download."
@@ -145,15 +146,28 @@ export function EditorDialog({
         aria-labelledby="editor-title"
       >
         <header className="editor-header">
-          <button type="button" className="button text" onClick={onClose} disabled={!!busy}>
-            <ChevronLeft size={17} /> Back to moments
+          <button
+            type="button"
+            className="button text editor-back"
+            aria-label="Back to moments"
+            onClick={onClose}
+            disabled={!!busy}
+          >
+            <ChevronLeft size={17} /> <span>Back to moments</span>
           </button>
-          <div>
-            <span className={`status-dot ${moment.status}`} />
-            {moment.status.replaceAll("_", " ")}
-            <span className="revision">
-              {editDirty || rightsDirty ? "Unsaved draft" : `Saved · edit ${moment.edit_revision}`}
-            </span>
+          <div className="editor-heading">
+            <strong className="editor-clip-title" title={title.trim() || undefined}>
+              {title.trim() || "Untitled clip"}
+            </strong>
+            <div className="editor-state">
+              <span className="editor-status">
+                <span className={`status-dot ${moment.status}`} aria-hidden="true" />
+                {moment.status.replaceAll("_", " ")}
+              </span>
+              <span className={`revision${editDirty || rightsDirty ? " revision-dirty" : ""}`}>
+                {editDirty || rightsDirty ? "Unsaved draft" : `Saved · edit ${moment.edit_revision}`}
+              </span>
+            </div>
           </div>
           <button
             type="button"
@@ -168,8 +182,22 @@ export function EditorDialog({
         <div className="editor-body">
           <div className="editor-preview">
             <div className="preview-top">
-              <span className="eyebrow">{renderVisible ? "ACTUAL RENDERED OUTPUT" : "LIVE COMPOSITION"}</span>
-              <span>{renderVisible ? "Final export" : "Draft preview · export is authoritative"}</span>
+              <div className="preview-heading">
+                <strong>{renderVisible ? "Final export" : "Draft preview"}</strong>
+                <span>
+                  {renderVisible ? "MP4" : plan.layout === "original" ? "Source aspect ratio" : "9:16"}
+                </span>
+                {!renderVisible && plan.muteAudio && <span>Audio muted</span>}
+              </div>
+              {moment.status === "rendered" && !editDirty && !rightsDirty && (
+                <button
+                  type="button"
+                  className="button text preview-switch"
+                  onClick={() => setShowRender(!showRender)}
+                >
+                  {renderVisible ? "Return to source preview" : "Watch rendered output"}
+                </button>
+              )}
             </div>
             <div hidden={renderVisible}>
               <CompositionPreview
@@ -192,12 +220,6 @@ export function EditorDialog({
                 />
               </div>
             )}
-            <div className="preview-bottom">
-              <span>
-                <Film size={15} /> {moment.game}
-              </span>
-              <span>{plan.muteAudio ? "Audio muted" : "Source audio"}</span>
-            </div>
             <ClipTimeline
               sourceId={moment.source_id}
               durationMs={moment.metadata.durationMs}
@@ -221,27 +243,24 @@ export function EditorDialog({
                 }
               }}
             />
-            {moment.status === "rendered" && !editDirty && !rightsDirty && (
-              <button
-                type="button"
-                className="button secondary full"
-                onClick={() => setShowRender(!showRender)}
-              >
-                {renderVisible ? "Return to source preview" : "Watch rendered output"}
-              </button>
-            )}
           </div>
           <div className="editor-controls">
             <h2 id="editor-title" className="visually-hidden">
               Clip editor
             </h2>
             <div className="tabbar">
-              <button type="button" className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")}>
+              <button
+                type="button"
+                className={tab === "edit" ? "active" : ""}
+                aria-pressed={tab === "edit"}
+                onClick={() => setTab("edit")}
+              >
                 <SlidersHorizontal size={15} /> Edit clip
               </button>
               <button
                 type="button"
                 className={tab === "rights" ? "active" : ""}
+                aria-pressed={tab === "rights"}
                 onClick={() => setTab("rights")}
               >
                 <ShieldCheck size={15} /> Rights & review
@@ -261,6 +280,7 @@ export function EditorDialog({
                       type="button"
                       key={layout.id}
                       className={`layout-option ${plan.layout === layout.id ? "selected" : ""}`}
+                      aria-pressed={plan.layout === layout.id}
                       onClick={() => setPlan({ ...plan, layout: layout.id })}
                     >
                       <layout.icon size={20} />
@@ -380,8 +400,8 @@ export function EditorDialog({
                   />
                 </label>
                 <p className="subtle-note">
-                  Draft framing and captions approximate the export. H.264 MP4 exports use 720 × 1280, or the
-                  original aspect ratio.
+                  H.264 MP4 · {plan.layout === "original" ? "source aspect ratio" : verticalExportSize}. Draft
+                  framing and captions approximate the export.
                 </p>
               </div>
             ) : (
@@ -514,32 +534,29 @@ export function EditorDialog({
           </div>
         )}
         <footer className="editor-footer">
-          <span>
-            <ShieldCheck size={15} /> Your final say. Every time.
-          </span>
+          <button
+            type="button"
+            className="button text reject"
+            disabled={!!busy || reason.trim().length < 3}
+            onClick={() =>
+              void action("reject", async () => {
+                const revisions = await save();
+                await api(`/candidates/${moment.id}/review`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    decision: "rejected",
+                    reason,
+                    expectedRevision: revisions.editRevision,
+                    expectedRightsRevision: revisions.rightsRevision,
+                  }),
+                });
+                setNotice("rejected");
+              })
+            }
+          >
+            Reject
+          </button>
           <div>
-            <button
-              type="button"
-              className="button text reject"
-              disabled={!!busy || reason.trim().length < 3}
-              onClick={() =>
-                void action("reject", async () => {
-                  const revisions = await save();
-                  await api(`/candidates/${moment.id}/review`, {
-                    method: "POST",
-                    body: JSON.stringify({
-                      decision: "rejected",
-                      reason,
-                      expectedRevision: revisions.editRevision,
-                      expectedRightsRevision: revisions.rightsRevision,
-                    }),
-                  });
-                  setNotice("rejected");
-                })
-              }
-            >
-              Reject
-            </button>
             <button
               type="button"
               className="button secondary"

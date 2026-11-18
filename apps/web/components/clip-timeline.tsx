@@ -120,10 +120,19 @@ export function ClipTimeline({
   const endMin = plan.startMs + Math.min(100, durationMs);
   return (
     <div className="clip-timeline">
+      <div className="clip-transport">
+        <button type="button" className="button secondary" onClick={onPlay}>
+          {playing ? <Pause size={15} /> : <Play size={15} />}
+          {playing ? "Pause selection" : "Play selection"}
+        </button>
+        <span className="source-clock">
+          Source time <strong>{time(playheadMs)}</strong>
+        </span>
+      </div>
       <div className="timeline-labels">
-        <span>{time(plan.startMs)}</span>
+        <span>{time(0)}</span>
         <strong>{((plan.endMs - plan.startMs) / 1000).toFixed(1)}s selected</strong>
-        <span>{time(plan.endMs)}</span>
+        <span>{time(durationMs)}</span>
       </div>
       <section
         className="filmstrip"
@@ -247,10 +256,6 @@ export function ClipTimeline({
             onChange={(e) => onBoundary("endMs", Number(e.target.value))}
           />
         </label>
-        <button type="button" className="button secondary" onClick={onPlay}>
-          {playing ? <Pause size={15} /> : <Play size={15} />}
-          {playing ? "Pause selection" : "Play selection"}
-        </button>
       </div>
     </div>
   );

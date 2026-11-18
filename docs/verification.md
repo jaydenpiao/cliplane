@@ -3,6 +3,26 @@
 Updated: 2026-11-17 (America/Los_Angeles). Use live PR/Actions state for the delivered
 revision. A merged source tree does not imply an application deployment.
 
+## Editor context and playback (#51)
+
+The clip title and save state stay visible above the media. Play and the source
+clock sit above the filmstrip, whose endpoints describe the full recording. The
+selected duration remains separate. The original layout retains the source aspect
+ratio. The preview distinguishes the draft composition and actual MP4 output.
+
+- The baseline browser regression reproduced selection timestamps on the source
+  axis. The regression now checks the full 12-second source after trimming to 2–6
+  seconds and checks the source clock after a real seek.
+- `npm run check` passed 168 TypeScript tests, 13 media tests, lint, types, and build.
+  All six Playwright workflows passed, including the source timeline regression
+  and the decoded export check.
+- Inspected a real 65-second sample at 1440, 768, 390 and 320px. Each viewport
+  loaded eight source frames, advanced playback and restored focus after Escape.
+  No horizontal overflow was measured. Two scoped axe scans found zero violations.
+- Independent source review approved. The README's [editor image](images/editor-review.png)
+  is the new desktop capture. Logs and private captures are under
+  `/workspace/work/editor-workspace-design/`.
+
 ## Modern studio and session checkpoint (#49)
 
 Media-led entry uses the authorized original-demo poster; navigation/cards are
