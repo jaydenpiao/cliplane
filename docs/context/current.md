@@ -4,73 +4,57 @@ Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying 
 
 ## Goal and current increment
 
-Treat user messages as cumulative unless cancelled. Latest priority: a modern light
-UI, updated README and running application in this Codex web cloud session. Issue
-[#49](https://github.com/jaydenpiao/cliplane/issues/49) is the selected increment,
-branch `feat/studio-polish-preview`, worktree `/workspace/work/cliplane-studio-polish`,
-base main `11b3062882ec810aa5544846a3b7b6acb8d8ed96`. Check live issue/linked PR before
-acting. If integrated, do not repeat this UI/README increment.
+The latest user request prioritizes stronger design. [Issue #51](https://github.com/jaydenpiao/cliplane/issues/51)
+covers editor context and transport on `feat/editor-workspace-design`, based on main
+`7f88794ce7bf477a8ed72012900b17920ac6f331`. Verify live GitHub state before acting
+and skip this increment if already integrated. The clip title and draft state belong
+above the media. Playback and source time belong by the filmstrip. Its axis spans
+full source time independently of the trim selection. Stack the inspector through
+768px. Existing startup research and the original synthetic sample inform this pass.
 
-Implementation is complete: media-led entry with a labelled, already-public original
-sample-workbench image; quieter sidebar; compact16:9 cards; first390px mobile clip
-at y345.8 versus416.8 baseline. README is product-first with current screenshots,
-quickstart, uv activation, local/managed browser guidance and separate API/Next
-forwarded-origin configuration. No dependency, auth/API or live-editor change.
-Three inspected screenshots are refreshed in docs/images. Original45s demo retained;
-no new footage, recording or claim about watching other startup demos was needed.
+The baseline regression showed `0:02` and `0:06` around a four-second selection
+on a 12-second source. The updated workflow expects `0:00` and `0:12` and verifies
+the visible source clock follows a real seek. Independent source review approved.
+Browser inspection used the original 65-second sample at 1440, 768, 390 and 320px.
+Eight frames decoded and playback advanced at each width. The editor restored
+focus after Escape. No horizontal overflow was measured. Scoped axe scans at
+1440 and 390px returned zero violations. The README's editor screenshot is current.
 
-Actual desktop1440/tablet768 screenshots were inspected. Mobile390 login/register,
-invalid credentials, studio, empty search, editor and long draft were exercised:
-no document overflow; six loaded thumbnails; four focused axe scans0violations.
-Axe results are not full conformance. A confirmed mobile drawer focus/Escape and
-reduced-motion defect was reproduced in a meaningful browser regression and fixed.
-Existing useDialog is reused; background inert, Help handoff and desktop resize
-are covered. Source and fix reviews approve; README review findings are resolved.
-`.superpowers` is excluded from local Docker build contexts to keep workflow scratch
-private. Reports/screens: `/workspace/work/studio-polish/`.
+Evidence and active work are recorded in `/workspace/work/editor-workspace-design/checkpoint.md`
+and the cumulative ledger `/workspace/work/iteration-ledger.md`. Require the full
+check, browser workflow and actual responsive/keyboard/axe evidence before review.
+Integration requires passing Quality, browser, container, Secrets and CodeQL on the
+current reviewed revision, with verified jaydenpiao attribution.
 
-Post-fix npm run check passes168TS/API/helper +13media tests, lint/types/Ruff/mypy
-and production build: `/workspace/work/logs/studio-polish-final-check.log`.
-Final post-fix six browser workflows pass (1.3m), including drawer/Help/resize/
-reduced-motion regression and actual decoded-media export; independent focused
-drawer recheck passes with a fifth zero-violation axe scan. Do not repeat these once recorded passing
-without a new material change. Plan/spec: `docs/superpowers/{plans,specs}/2026-11-17-studio-polish*.md`.
-Private plan ledger: `.superpowers/sdd/studio-polish/progress.md`; cumulative ledger:
-`/workspace/work/iteration-ledger.md`. Root owns verification/integration.
+## Studio entry, README and session preview
 
-App is running from this UI worktree on0.0.0.0:3000 with API loopback4000 and
-original synthetic sample data; supervisor668337, recorded in
-`/workspace/work/logs/cliplane-dev-supervisor.json`, log studio-polish-dev.log.
-Check metadata/process identity and health before lifecycle changes. Stop the actual
-supervisor before a build sharing .next. Local HTTP health and real Playwright UI
-are verified. This does not establish a user-visible cloud preview.
+[PR #50](https://github.com/jaydenpiao/cliplane/pull/50) merged as `7f88794` after
+11 passing checks on `fde55df311c32a643a22291da170ef2164c385eb`. Main Quality,
+Secrets and CodeQL passed. It delivered the media-led entry, compact 16:9 cards,
+updated README and screenshots. A drawer regression verifies focus, Escape, Help,
+resize and reduced motion. Local full check and six browser workflows passed.
+Actual 1440px, 768px and 390px captures were inspected. Mobile first card moved
+from y416.8 to y345.8. Five focused axe scans reported zero violations. Reports:
+`/workspace/work/studio-polish/` and `/workspace/work/logs/studio-polish-final-{check,e2e}.log`.
 
-The matching cloud environment reports running but no preview portals; no
-open_cloud_preview/open_in_codex tools are exposed. Shared CUA failed with
-`the gaas-browser node_repl sandbox cannot be disabled`. Never invent a preview URL,
-use a public tunnel or claim the viewer works from HTTP health. After UI integration,
-keep #49 open with the exact platform preview blocker; no production deployment is
-claimed. If capability/access/usage remains unchanged, checkpoint and stop rather
-than repeat the delivered UI or run another check loop. No purchases/upgrades.
+[#49](https://github.com/jaydenpiao/cliplane/issues/49) stays blocked on an accessible
+Codex preview. Inside the session, web runs on port 3000 and API on loopback 4000.
+The cloud environment reports no preview portals or preview-opening tools. The
+shared viewer failed with `the gaas-browser node_repl sandbox cannot be disabled`.
+If supported private preview access appears, verify the real URL in a top-level
+browser and apply the exact API origin and Next development hostname settings in the
+README. Keep the running app available and preserve its checkout/dependencies/data.
 
-Main PR47 merged as11b3062 with Quality/Secrets/CodeQL green. Controller preflight
-and reviewed exact Vitest-only matcher pin are delivered. #48 tracks reviewed official
-replacement and documents publisher/semantic/separate-bundled-copy limits. #2 is
-Ready while #49 is selected: application decoding is still native and preflight
-always reports decoderIsolationQualified:false. Decoder image/artifact research is
-parked at `/workspace/work/decoder-runtime/{recon.md,research.md}`; no runtime code
-started. Resume this work after the current user priority is resolved or reordered.
+## Decoder checkpoint
 
-The isolated worktree reuses identical installed dependencies via hard links; do not
-mutate them. A duplicate install hit disk limits; only a disposable advisory trial's
-node_modules was removed, preserving manifests/review evidence. A whole directory
-symlink failed Turbopack's workspace boundary; hard-link paths pass HTTP and build.
-Python environment and synthetic-data links are local Git exclusions, never staged.
-
-Next: commit/push with verified jaydenpiao attribution, require exact-head quality/
-browser/container/Secrets/CodeQL and perform the authorized integration. All local
-source/browser/visual review is complete; reuse this evidence for unchanged source. Keep #49's cloud-viewer
-limitation explicit and leave the verified application running.
+[PR #47](https://github.com/jaydenpiao/cliplane/pull/47) merged as `11b3062` with
+Quality, Secrets and CodeQL green. Controller preflight and the reviewed temporary
+Vitest matcher pin are delivered. #48 tracks official replacement and documents
+the pin's compatibility and bundled-copy limits. App decoding remains native, and
+preflight reports `decoderIsolationQualified: false`. #2 is Ready. The dedicated
+image and bounded artifact protocol research is parked in
+`/workspace/work/decoder-runtime/{recon.md,research.md}`. Resume after the current
+user-prioritized design pass.
 
 ## Previous workbench delivery
 
@@ -139,8 +123,9 @@ uncommitted worktree/private gameplay/helpers are not recovered. Do not assume o
 absolute paths or feature-tip ancestry establish completion; prior integrations were
 squash merges. Preserve private recovery refs locally; never mirror/push them.
 
-Task PostgreSQL 17 is healthy on local54329. Current API/web use ports4000/3000 via
-`node scripts/dev.mjs` in the UI worktree, recorded supervisor PID668337 in
+Task PostgreSQL 17 is healthy on local port 54329. The API and web use ports 4000
+and 3000. The editor pass moved `node scripts/dev.mjs` to the primary checkout.
+Find the current supervisor and checkout in
 `/workspace/work/logs/cliplane-dev-supervisor.json`. Check process identity/health
 before stopping or restarting. Stop the actual Node supervisor, not only its npm
 parent, before a build sharing `.next`. Original synthetic sample data is seeded.
@@ -153,7 +138,7 @@ Do not spin, repeat passed checks or buy upgrades.
 
 ## Next engineering work and boundaries
 
-After the current user-prioritized UI/session increment, resume #2 decoder isolation: native process cancellation and
+After the current editor design increment, resume #2 decoder isolation: native process cancellation and
 lease/COMMIT fencing are delivered, but per-job filesystem/network isolation,
 behaviorally qualified aggregate quotas and bounded artifact export remain open.
 Older rootless Docker ignored cgroup flags; qualify the current runtime rather than
@@ -185,7 +170,7 @@ information and private distribution drafts outside this public repository.
 ```sh
 git status --short
 git log -3 --oneline
-gh issue view 49 --repo jaydenpiao/cliplane
+gh issue view 51 --repo jaydenpiao/cliplane
 gh pr list --repo jaydenpiao/cliplane --state open
 cat /workspace/work/iteration-ledger.md
 curl -fsS http://localhost:4000/api/health

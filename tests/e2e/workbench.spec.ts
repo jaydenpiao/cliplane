@@ -250,6 +250,11 @@ test("draft composition and decoded filmstrip follow real seeking and keyboard t
   await expect(video).toHaveJSProperty("muted", true);
   await editor.getByLabel("Start (seconds)", { exact: true }).fill("2");
   await editor.getByLabel("End (seconds)", { exact: true }).fill("6");
+  await expect(editor.locator(".timeline-labels").locator(":scope > *")).toHaveText([
+    "0:00",
+    "4.0s selected",
+    "0:12",
+  ]);
   await editor.getByRole("button", { name: "Add cue" }).click();
   await editor.getByLabel("Caption 1", { exact: true }).fill("A live original caption");
   await editor.getByLabel("From", { exact: true }).fill("0.5");
@@ -262,6 +267,7 @@ test("draft composition and decoded filmstrip follow real seeking and keyboard t
   await expect(preview.getByTestId("preview-caption")).toHaveText("A live original caption");
   await expect.poll(() => previewCaptionPixels(stage)).toBeGreaterThan(80);
   await seek(playhead, 4.5);
+  await expect(editor.getByText("Source time", { exact: false })).toContainText("0:04");
   await expect(preview.getByTestId("preview-caption")).toHaveCount(0);
   await expect.poll(() => previewCaptionPixels(stage)).toBeLessThan(10);
   const before = await video.evaluate((element: HTMLVideoElement) => element.currentTime);

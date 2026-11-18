@@ -17,6 +17,10 @@ clear review controls and useful workspace content in the first viewport.
   and review actions visible while avoiding repeated permission cards in the sidebar.
 - Use compact task headings and one quiet provenance line per card. Keep the first
   clip visible early on mobile; editor headings leave room for the actual controls.
+- In the editor, keep the clip title and save state visible above the preview. Put
+  playback and source time beside the filmstrip. The filmstrip spans the full source,
+  and the trim selection has its own duration and handles. Stack the inspector below
+  the preview at tablet and phone widths.
 - Desktop has a compact sidebar and three-column library; mobile uses one column
   and a dismissible menu. Hidden navigation must not paint shadows across content.
 - Preserve keyboard focus, Escape dismissal, busy state and focus return in dialogs.
