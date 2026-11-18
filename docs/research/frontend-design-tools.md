@@ -62,3 +62,19 @@ heading. The pass uses existing tokens/components and removes redundant presenta
 no library migration or dependency was needed. Installed Next16.4.6 CSS guidance and the
 pinned Vercel focus/content-overflow guidance above were consulted. Fresh browser
 evidence uses an isolated synthetic schema; see docs/images and docs/verification.md.
+
+## Media-led entry and library pass (#49)
+
+The user prioritized modern UI, README and this Codex cloud session. Actual baseline
+and revised1440/768/390 captures informed a media-led entry, quieter navigation,
+compact16:9 cards and less space before the first mobile clip. Existing verified
+startup references were reused; no new footage observation is claimed. The public
+entry image is byte-identical to the original-media demo poster, labelled as a sample.
+No UI dependency or component-framework migration was needed.
+
+Installed Next16.4.6 CSS and allowedDevOrigins guidance and the pinned interface
+reference were consulted. Source review corrected README origin/database instructions;
+actual browser review caught drawer focus/Escape and reduced-motion issues, reproduced
+and fixed with a regression. Current checks and limits are in docs/verification.md.
+The server runs in the cloud session; missing preview portals/shared-viewer errors
+remain a separate platform access limitation, not a deployment or UI success claim.

@@ -10,6 +10,11 @@ clear review controls and useful workspace content in the first viewport.
 - Media cards lead into a focused player with contextual editing and rights controls.
   Source masters stay unchanged. A live draft preview responds to framing and
   captions; separately labelled rendered output is the final composition.
+- Sign-in leads with a short product outcome and an actual sample-workbench image.
+  Label the image as a sample preview; keep the form and sample entry before imagery
+  in the mobile reading order. Do not imply that static imagery is an interactive player.
+- Use 16:9 library media, compact metadata and quiet navigation. Keep rights status
+  and review actions visible while avoiding repeated permission cards in the sidebar.
 - Use compact task headings and one quiet provenance line per card. Keep the first
   clip visible early on mobile; editor headings leave room for the actual controls.
 - Desktop has a compact sidebar and three-column library; mobile uses one column

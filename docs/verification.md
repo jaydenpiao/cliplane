@@ -3,12 +3,37 @@
 Updated: 2026-11-17 (America/Los_Angeles). Use live PR/Actions state for the delivered
 revision. A merged source tree does not imply an application deployment.
 
+## Modern studio and session checkpoint (#49)
+
+Media-led entry uses the authorized original-demo poster; navigation/cards are
+quieter and compact16:9 media leads the library. README and three canonical real
+screenshots are refreshed. The current app uses the same auth/API/editor/rights
+workflow and no new dependency. Drawer keyboard and reduced-motion failures were
+reproduced before the fix; focused regression passes, including Help and resize.
+
+- Post-fix npm run check:168TS/API/helper +13media tests, lint/types, Ruff/mypy and
+  production build pass. Final six real browser workflows pass
+  (1.3m); scoped independent drawer keyboard/motion recheck also passes.
+- Inspected actual1440/768 screenshots and390mobile states; first card y345.8 vs
+  baseline416.8; no measured mobile overflow; six loaded640px thumbnails. Four
+  focused mobile axe scans have zero violations; a fifth open-drawer scan and
+  independent focus/return/Escape/Help/reduced-motion checks also pass. This is
+  scoped browser evidence, not complete accessibility conformance.
+- Independent source and fix reviews approve. README origin and TEST_DATABASE_URL
+  findings are resolved; its uv activation and managed-CI-browser instructions match
+  actual tooling. Private reports/logs are linked from current.md.
+- Current local web3000/API4000 respond and Playwright runs real media. The cloud
+  environment provides no preview portal and shared CUA fails a platform sandbox
+  error. No external preview URL, accessible viewer or deployment is claimed.
+- Exact-head quality/browser/container/Secrets/CodeQL still gate integration. #49
+  remains open for the platform viewer limitation after the UI/README increment.
+
 ## Decoder controller preflight checkpoint (#2, partial)
 
 Branch `feat/decoder-controller-preflight` starts from main `d4e871b`. A standalone
 operator command checks eligible daemon/controller readbacks with bounded execution
 and owned immutable-ID cleanup; it always reports `decoderIsolationQualified: false`.
-Application media execution remains native and #2 stays In progress.
+Application media execution remains native; #2 stays open and is Ready while #49 is selected.
 
 - 63 focused fake-engine and real fake-executable protocol/lifecycle cases pass;
   these are not real decoder/aggregate enforcement tests.

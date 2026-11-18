@@ -6,6 +6,7 @@ node_modules
 !.env.example
 data
 work
+.superpowers
 apps/web/.next
 **/__pycache__
 **/*.tsbuildinfo

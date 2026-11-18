@@ -4,58 +4,73 @@ Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying 
 
 ## Goal and current increment
 
-Treat user messages as cumulative tasks unless cancelled. Keep modern, simple light
-UI and genuine startup-informed demos in the backlog. PR #46 is merged as main
-`d4e871bf80fd2a84c202c9d2d41019cdb357ad86`; Quality, Secrets and CodeQL on that main
-commit passed. #45 is closed Done. Do not repeat the delivered workbench/demo.
+Treat user messages as cumulative unless cancelled. Latest priority: a modern light
+UI, updated README and running application in this Codex web cloud session. Issue
+[#49](https://github.com/jaydenpiao/cliplane/issues/49) is the selected increment,
+branch `feat/studio-polish-preview`, worktree `/workspace/work/cliplane-studio-polish`,
+base main `11b3062882ec810aa5544846a3b7b6acb8d8ed96`. Check live issue/linked PR before
+acting. If integrated, do not repeat this UI/README increment.
 
-Current bounded issue #2 increment: a standalone decoder controller preflight.
-Branch `feat/decoder-controller-preflight`, base `d4e871b`; source commit
-`719f940ced65e2a0956b929a0b0de043eeda3f87`, integration [PR #47](https://github.com/jaydenpiao/cliplane/pull/47). It does not change app
-media execution or close full decoder isolation. Spec/plan:
-`docs/superpowers/{specs,plans}/2026-11-17-decoder-preflight*.md`.
+Implementation is complete: media-led entry with a labelled, already-public original
+sample-workbench image; quieter sidebar; compact16:9 cards; first390px mobile clip
+at y345.8 versus416.8 baseline. README is product-first with current screenshots,
+quickstart, uv activation, local/managed browser guidance and separate API/Next
+forwarded-origin configuration. No dependency, auth/API or live-editor change.
+Three inspected screenshots are refreshed in docs/images. Original45s demo retained;
+no new footage, recording or claim about watching other startup demos was needed.
 
-Fresh safe runtime observation confirmed Docker29.9.2 rootless, cgroup v2, driver
-none. Requested64 MiB/0.5 CPU/16 PIDs read back8 GiB/2 CPUs/unlimited PIDs; flags
-silently succeeded. No stress ran; exact probe cleanup was verified. Sanitized
-private evidence: `/workspace/work/decoder-qualification/runtime-{report.md,evidence.json}`.
+Actual desktop1440/tablet768 screenshots were inspected. Mobile390 login/register,
+invalid credentials, studio, empty search, editor and long draft were exercised:
+no document overflow; six loaded thumbnails; four focused axe scans0violations.
+Axe results are not full conformance. A confirmed mobile drawer focus/Escape and
+reduced-motion defect was reproduced in a meaningful browser regression and fixed.
+Existing useDialog is reused; background inert, Help handoff and desktop resize
+are covered. Source and fix reviews approve; README review findings are resolved.
+`.superpowers` is excluded from local Docker build contexts to keep workflow scratch
+private. Reports/screens: `/workspace/work/studio-polish/`.
 
-Implementation now exists in scripts/decoder and package command decoder:preflight.
-63 focused protocol/lifecycle/subprocess cases, scoped lint/types and the actual
-current-runtime nonzero rejection pass. The actual command rejects the daemon
-before image inspection/container creation, with decoderIsolationQualified:false.
-Independent source review and full check pass (168 TS/API/helper tests, 13 Python/media tests, lint/types, Ruff/mypy and production build); never infer full sandbox qualification.
+Post-fix npm run check passes168TS/API/helper +13media tests, lint/types/Ruff/mypy
+and production build: `/workspace/work/logs/studio-polish-final-check.log`.
+Final post-fix six browser workflows pass (1.3m), including drawer/Help/resize/
+reduced-motion regression and actual decoded-media export; independent focused
+drawer recheck passes with a fifth zero-violation axe scan. Do not repeat these once recorded passing
+without a new material change. Plan/spec: `docs/superpowers/{plans,specs}/2026-11-17-studio-polish*.md`.
+Private plan ledger: `.superpowers/sdd/studio-polish/progress.md`; cumulative ledger:
+`/workspace/work/iteration-ledger.md`. Root owns verification/integration.
 
-The first hosted attempt exposed an optional Docker image metadata lookup error.
-Reviewed fix `16091d58f53704c5a58c3a0348d73e47be673a52` uses a safe map lookup;
-declared-volume and other guards remain strict. Hosted controller readback/cleanup
-then passed on systemd/v2 (64 MiB/0.5 CPU/16 PIDs/swap0), still explicitly not full
-isolation qualification. Do not repeat the old formatter failure or weaken the gate.
+App is running from this UI worktree on0.0.0.0:3000 with API loopback4000 and
+original synthetic sample data; supervisor668337, recorded in
+`/workspace/work/logs/cliplane-dev-supervisor.json`, log studio-polish-dev.log.
+Check metadata/process identity and health before lifecycle changes. Stop the actual
+supervisor before a build sharing .next. Local HTTP health and real Playwright UI
+are verified. This does not establish a user-visible cloud preview.
 
-A new upstream Picomatch advisory also blocked the unchanged npm audit gate. A
-reviewed exact Vitest-only temporary pin and lock now pass audit and full checks;
-[review scope](../research/test-toolchain-security.md) and
-[replacement #48](https://github.com/jaydenpiao/cliplane/issues/48) record publisher,
-semantic and separate-bundled-copy limits. Preserve the pin until a reviewed official
-fix is available; zero audit alone is not all-copy remediation.
+The matching cloud environment reports running but no preview portals; no
+open_cloud_preview/open_in_codex tools are exposed. Shared CUA failed with
+`the gaas-browser node_repl sandbox cannot be disabled`. Never invent a preview URL,
+use a public tunnel or claim the viewer works from HTTP health. After UI integration,
+keep #49 open with the exact platform preview blocker; no production deployment is
+claimed. If capability/access/usage remains unchanged, checkpoint and stop rather
+than repeat the delivered UI or run another check loop. No purchases/upgrades.
 
-Hosted container CI wiring adds a real positive controller preflight against its
-trusted built app image's immutable ID; only the fixed shell probe executes. It is
-readback/cleanup evidence, not a dedicated decoder/hostile-media or aggregate-abuse
-qualification. This new hosted gate must pass before merge.
+Main PR47 merged as11b3062 with Quality/Secrets/CodeQL green. Controller preflight
+and reviewed exact Vitest-only matcher pin are delivered. #48 tracks reviewed official
+replacement and documents publisher/semantic/separate-bundled-copy limits. #2 is
+Ready while #49 is selected: application decoding is still native and preflight
+always reports decoderIsolationQualified:false. Decoder image/artifact research is
+parked at `/workspace/work/decoder-runtime/{recon.md,research.md}`; no runtime code
+started. Resume this work after the current user priority is resolved or reordered.
 
-Implementation owner: implement_decoder_preflight. CI wiring: wire_decoder_preflight_ci.
-Research/runtime docs: qualify_decoder_runtime. Root owns context/development/
-verification/spec/plan and integration; keep edits disjoint. Private reports/ledger:
-`/workspace/work/decoder-preflight/` and `/workspace/work/iteration-ledger.md`.
+The isolated worktree reuses identical installed dependencies via hard links; do not
+mutate them. A duplicate install hit disk limits; only a disposable advisory trial's
+node_modules was removed, preserving manifests/review evidence. A whole directory
+symlink failed Turbopack's workspace boundary; hard-link paths pass HTTP and build.
+Python environment and synthetic-data links are local Git exclusions, never staged.
 
-Independent security/source review and full check pass. Next: inspect PR #47
-current-head checks, including real controller readback/cleanup in the hosted
-container job; require all checks and verified jaydenpiao attribution before
-authorized merge. If merged, do not repeat this preflight increment.
-Keep #2 In progress; next phases are a dedicated immutable runtime, bounded live
-artifact export, real enforcement tests and fail-closed upload/job integration.
-Reuse unchanged UI/demo evidence; no new recording is needed for this operator tool.
+Next: commit/push with verified jaydenpiao attribution, require exact-head quality/
+browser/container/Secrets/CodeQL and perform the authorized integration. All local
+source/browser/visual review is complete; reuse this evidence for unchanged source. Keep #49's cloud-viewer
+limitation explicit and leave the verified application running.
 
 ## Previous workbench delivery
 
@@ -118,13 +133,14 @@ CI for the fix; never merge a failed browser run or weaken its playback assertio
 
 ## Runtime and continuation
 
-Only this fresh clone exists at `/workspace/work/cliplane`; the older environment's
+Primary checkout `/workspace/work/cliplane` and linked UI worktree
+`/workspace/work/cliplane-studio-polish` share Git history. The older environment's
 uncommitted worktree/private gameplay/helpers are not recovered. Do not assume old
 absolute paths or feature-tip ancestry establish completion; prior integrations were
 squash merges. Preserve private recovery refs locally; never mirror/push them.
 
 Task PostgreSQL 17 is healthy on local54329. Current API/web use ports4000/3000 via
-`node scripts/dev.mjs`, recorded supervisor PID465397 in
+`node scripts/dev.mjs` in the UI worktree, recorded supervisor PID668337 in
 `/workspace/work/logs/cliplane-dev-supervisor.json`. Check process identity/health
 before stopping or restarting. Stop the actual Node supervisor, not only its npm
 parent, before a build sharing `.next`. Original synthetic sample data is seeded.
@@ -137,7 +153,7 @@ Do not spin, repeat passed checks or buy upgrades.
 
 ## Next engineering work and boundaries
 
-After #45 integration, resume #2 decoder isolation: native process cancellation and
+After the current user-prioritized UI/session increment, resume #2 decoder isolation: native process cancellation and
 lease/COMMIT fencing are delivered, but per-job filesystem/network isolation,
 behaviorally qualified aggregate quotas and bounded artifact export remain open.
 Older rootless Docker ignored cgroup flags; qualify the current runtime rather than
@@ -169,8 +185,8 @@ information and private distribution drafts outside this public repository.
 ```sh
 git status --short
 git log -3 --oneline
-gh pr view 47 --repo jaydenpiao/cliplane --json state,mergedAt,headRefOid
-gh pr checks 47 --repo jaydenpiao/cliplane
+gh issue view 49 --repo jaydenpiao/cliplane
+gh pr list --repo jaydenpiao/cliplane --state open
 cat /workspace/work/iteration-ledger.md
 curl -fsS http://localhost:4000/api/health
 ```
