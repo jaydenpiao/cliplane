@@ -1,5 +1,6 @@
 "use client";
-import { ArrowRight, Check, LoaderCircle, Play, ShieldCheck } from "lucide-react";
+import { ArrowRight, LoaderCircle, Play } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { Brand } from "./brand";
@@ -22,38 +23,15 @@ export function AuthScreen({ onReady }: { onReady: () => void }) {
   }
   return (
     <main className="auth-screen">
-      <section className="auth-story">
+      <header>
         <Brand />
-        <div>
-          <span className="eyebrow">
-            <span className="live-dot" /> THE CREATOR’S CUT
-          </span>
-          <h1>
-            More than <br />a recording.
-            <br />
-            <em>Your next story.</em>
-          </h1>
-          <p>
-            Turn long recordings into moments worth watching.
-            <br />
-            Find, refine and export. Every creative decision stays yours.
-          </p>
-          <div className="auth-points">
-            <span>
-              <Check size={16} /> Your footage. Your control.
-            </span>
-            <span>
-              <Check size={16} /> Every clip gets your final say.
-            </span>
-          </div>
-        </div>
-        <span className="auth-foot">
-          <ShieldCheck size={16} /> Creator-controlled. Open source. Always.
-        </span>
-      </section>
-      <section className="auth-panel">
-        <div className="auth-card">
-          <span className="tag coral">YOUR CREATOR WORKSPACE</span>
+      </header>
+      <div className="auth-layout">
+        <section className="auth-story">
+          <h1>Turn long recordings into clips.</h1>
+          <p>Find moments worth keeping, trim and caption them, and approve each edit before export.</p>
+        </section>
+        <section className="auth-card">
           <h2>{mode === "login" ? "Welcome to your studio." : "Create your studio."}</h2>
           <p>
             {mode === "login"
@@ -123,24 +101,29 @@ export function AuthScreen({ onReady }: { onReady: () => void }) {
               {mode === "login" ? "Create a workspace" : "Sign in"}
             </button>
           </div>
-          <div className="divider">
-            <span>JUST LOOKING AROUND?</span>
+          <div className="auth-sample">
+            <button
+              type="button"
+              className="button secondary full"
+              disabled={busy}
+              onClick={() => void act("/auth/demo")}
+            >
+              <Play size={15} fill="currentColor" /> Explore the sample studio
+            </button>
+            <p>Try the editor with original sample footage.</p>
           </div>
-          <button
-            type="button"
-            className="button secondary full"
-            disabled={busy}
-            onClick={() => void act("/auth/demo")}
-          >
-            <Play size={15} fill="currentColor" /> Explore the sample studio
-          </button>
-          <p className="sample-note">
-            Local demo with original synthetic footage.
-            <br />
-            Real workflow. No social accounts needed.
-          </p>
-        </div>
-      </section>
+        </section>
+        <figure className="auth-preview">
+          <Image
+            src="/sample-editor.png"
+            alt="Cliplane editor with a captioned racing clip, trim timeline and framing controls."
+            width={1600}
+            height={900}
+            sizes="(max-width: 760px) 100vw, (max-width: 1380px) 55vw, 735px"
+          />
+          <figcaption>Sample studio preview</figcaption>
+        </figure>
+      </div>
     </main>
   );
 }

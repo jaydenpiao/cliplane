@@ -48,7 +48,42 @@ test("sample studio is responsive and uses real media", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(page, "Mobile studio accessibility");
   await page.screenshot({ path: "work/screenshots/studio-mobile.png", fullPage: true });
-  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const menuButton = page.getByRole("button", { name: "Open menu" });
+  const menu = page.locator(".sidebar");
+  const closeMenu = menu.getByRole("button", { name: "Close menu" });
+  await menuButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(closeMenu).toBeVisible();
+  const transitionSeconds = await menu.evaluate((drawer) =>
+    Math.max(...getComputedStyle(drawer).transitionDuration.split(",").map(Number.parseFloat)),
+  );
+  expect.soft(transitionSeconds, "Reduced motion removes the drawer animation").toBeLessThan(1 / 60);
+  await expect(closeMenu).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(menu.locator(".user-profile")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(closeMenu).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(closeMenu).toBeHidden();
+  await expect(menuButton).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await menu.getByRole("button", { name: "Help & workflow" }).click();
+  const help = page.getByRole("dialog", { name: "Make room for the good stuff." });
+  await expect(help).toBeVisible();
+  await expect(closeMenu).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(help).toBeHidden();
+  await expect(menuButton).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(closeMenu).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await expect(closeMenu).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+  await menuButton.click();
   await page.getByRole("button", { name: "Recordings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your recordings." })).toBeVisible();
 });

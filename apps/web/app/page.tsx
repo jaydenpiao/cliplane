@@ -61,7 +61,21 @@ export default function Studio() {
   const [selectedDetail, setSelectedDetail] = useState<Moment | null>(null);
   const [selectedRefreshError, setSelectedRefreshError] = useState("");
   const selectedId = useRef<string | null>(null);
+  const menuDialog = useDialog(() => setMobileMenu(false), false, mobileMenu && Boolean(user));
   const helpDialog = useDialog(() => setInfo(false), false, info);
+  useEffect(() => {
+    if (!mobileMenu) return;
+    const media = window.matchMedia("(max-width: 760px)");
+    if (!user || !media.matches) {
+      setMobileMenu(false);
+      return;
+    }
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) setMobileMenu(false);
+    };
+    media.addEventListener("change", closeOnDesktop);
+    return () => media.removeEventListener("change", closeOnDesktop);
+  }, [mobileMenu, user]);
   const refresh = useCallback(async () => {
     const activeId = selectedId.current;
     const [d, s, m, j, e, detail] = await Promise.all([
@@ -219,7 +233,16 @@ export default function Studio() {
   if (!user) return <AuthScreen onReady={() => void signIn().then(() => window.scrollTo(0, 0))} />;
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}>
+      {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-modal is present only with the dialog role. */}
+      <section
+        ref={menuDialog}
+        id="studio-sidebar"
+        className={`sidebar ${mobileMenu ? "mobile-open" : ""}`}
+        role={mobileMenu ? "dialog" : "complementary"}
+        aria-label="Studio navigation"
+        aria-modal={mobileMenu || undefined}
+        tabIndex={mobileMenu ? -1 : undefined}
+      >
         <div className="sidebar-brand">
           <Brand />
           <button
@@ -276,16 +299,19 @@ export default function Studio() {
         </nav>
         <div className="sidebar-bottom">
           <div className="studio-note">
-            <span className="studio-note-icon">
-              <ShieldCheck size={18} />
-            </span>
-            <strong>You're in the director’s chair.</strong>
             <p>Every export starts with your approval.</p>
             <button type="button" onClick={() => navigate("rights")}>
               Review permissions <ArrowRight size={14} />
             </button>
           </div>
-          <button type="button" className="sidebar-help" onClick={() => setInfo(true)}>
+          <button
+            type="button"
+            className="sidebar-help"
+            onClick={() => {
+              setMobileMenu(false);
+              setInfo(true);
+            }}
+          >
             <CircleHelp size={17} /> Help & workflow <ExternalLink size={13} />
           </button>
           <button type="button" className="user-profile" onClick={() => navigate("settings")}>
@@ -303,15 +329,20 @@ export default function Studio() {
             <MoreHorizontal size={18} />
           </button>
         </div>
-      </aside>
-      <div className="workspace-content">
+      </section>
+      <div className="workspace-content" inert={mobileMenu}>
         <header className="topbar">
           <div>
             <button
               type="button"
               className="icon-button menu-button"
               aria-label="Open menu"
-              onClick={() => setMobileMenu(true)}
+              aria-controls="studio-sidebar"
+              aria-expanded={mobileMenu}
+              onClick={(event) => {
+                event.currentTarget.focus();
+                setMobileMenu(true);
+              }}
             >
               <Menu size={21} />
             </button>
@@ -511,11 +542,8 @@ export default function Studio() {
               </section>
               <section className="permission-note">
                 <ShieldCheck size={22} />
-                <h3>Your footage. Your final say.</h3>
-                <p>
-                  Nothing leaves the studio without your review. Rights, music and creator permission stay
-                  part of the process.
-                </p>
+                <h3>Before you export</h3>
+                <p>Review game and music rights and confirm creator permission.</p>
                 <button type="button" onClick={() => navigate("rights")}>
                   Check your permissions <ArrowRight size={14} />
                 </button>
