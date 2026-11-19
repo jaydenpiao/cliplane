@@ -12,7 +12,7 @@ const env = {
   GITHUB_REPOSITORY_ID: "1459551943",
   GITHUB_REPOSITORY_OWNER_ID: "71306047",
   GITHUB_REF: "refs/heads/main",
-  GITHUB_WORKFLOW_REF: "jaydenpiao/cliplane/.github/workflows/quality.yml@refs/heads/main",
+  GITHUB_WORKFLOW_REF: "jaydenpiao/cliplane/.github/workflows/pilot-package.yml@refs/heads/main",
   GITHUB_EVENT_NAME: "repository_dispatch",
   GITHUB_SHA: commit,
 };

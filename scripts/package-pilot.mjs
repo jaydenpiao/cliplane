@@ -10,11 +10,11 @@ export function resolvePackageRequest(env, event) {
     env.GITHUB_REPOSITORY_ID !== "1459551943" ||
     env.GITHUB_REPOSITORY_OWNER_ID !== "71306047" ||
     env.GITHUB_REF !== "refs/heads/main" ||
-    env.GITHUB_WORKFLOW_REF !== "jaydenpiao/cliplane/.github/workflows/quality.yml@refs/heads/main" ||
+    env.GITHUB_WORKFLOW_REF !== "jaydenpiao/cliplane/.github/workflows/pilot-package.yml@refs/heads/main" ||
     env.GITHUB_EVENT_NAME !== "repository_dispatch" ||
     event?.action !== "cliplane-pilot-package"
   )
-    throw new Error("Packaging requires the Cliplane main Quality workflow and dispatch.");
+    throw new Error("Packaging requires the Cliplane main pilot package workflow and dispatch.");
 
   const payload = event.client_payload;
   if (

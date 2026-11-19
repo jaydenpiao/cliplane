@@ -9,7 +9,7 @@ fi
 evidence="$1"
 recipient="$2"
 output="$3"
-limit=$((400 * 1024 * 1024))
+limit=$((640 * 1024 * 1024))
 
 if [[ ! "${GITHUB_RUN_ID:-}" =~ ^[1-9][0-9]*$ || ! "${GITHUB_RUN_ATTEMPT:-}" =~ ^[1-9][0-9]*$ ]]; then
   echo 'A recorded GitHub workflow run and attempt are required.' >&2
@@ -69,7 +69,7 @@ tar -C "$scratch" -cf - manifest.json images.tar.gz |
     -recip "$recipient" -out "$scratch/package.cms"
 sealed_bytes="$(stat -c '%s' "$scratch/package.cms")"
 if (( sealed_bytes > limit )); then
-  echo 'Encrypted package exceeds the 400 MiB upload limit.' >&2
+  echo 'Encrypted package exceeds the 640 MiB draft transfer limit.' >&2
   exit 1
 fi
 sealed_hash="$(sha256sum -- "$scratch/package.cms")"
