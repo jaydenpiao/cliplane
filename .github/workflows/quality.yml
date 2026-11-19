@@ -31,7 +31,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install host media verification tools if needed
+        timeout-minutes: 8
+        run: bash scripts/install-ci-ffmpeg.sh
       - run: npm ci
       - run: uv sync --locked --group dev
       - run: npm run check
@@ -66,7 +68,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install host media verification tools if needed
+        timeout-minutes: 8
+        run: bash scripts/install-ci-ffmpeg.sh
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run seed
@@ -94,14 +98,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install host media verification tools if needed
-        timeout-minutes: 3
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
-            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
-            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y ffmpeg
-          fi
+        timeout-minutes: 8
+        run: bash scripts/install-ci-ffmpeg.sh
       - name: Build dedicated decoder image
         timeout-minutes: 8
         run: docker build -f workers/media/Decoder.Dockerfile -t cliplane-decoder:ci workers/media
@@ -112,3 +110,13 @@ jobs:
           set -euo pipefail
           decoder_image_id="$(docker image inspect --format '{{.Id}}' cliplane-decoder:ci)"
           python3 -B scripts/decoder/smoke.py --image "$decoder_image_id"
+      - name: Install managed Chromium for production smoke
+        timeout-minutes: 6
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the production app image over HTTPS
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_image_id="$(docker image inspect --format '{{.Id}}' cliplane:ci)"
+          bash scripts/production-smoke.sh "$app_image_id"
