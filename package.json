@@ -26,7 +26,7 @@
     "check": "npm run lint && npm run typecheck && npm test && npm run test:media && npm run check:python && npm run build",
     "evaluate": "python workers/media/evaluate.py packages/test-fixtures/ranking-labels.json",
     "test:e2e": "playwright test",
-    "check:python": "uv run --group dev ruff check workers && uv run --group dev ruff format --check workers && uv run --group dev mypy workers/media/pipeline.py workers/media/evaluate.py"
+    "check:python": "uv run --group dev ruff check workers scripts/decoder/smoke.py && uv run --group dev ruff format --check workers scripts/decoder/smoke.py && uv run --group dev mypy workers/media/pipeline.py workers/media/evaluate.py workers/media/decoder.py workers/media/artifact_protocol.py scripts/decoder/smoke.py"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.5",

@@ -4,27 +4,37 @@ Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying 
 
 ## Goal and current increment
 
-The latest user request prioritizes stronger design. [Issue #51](https://github.com/jaydenpiao/cliplane/issues/51)
-covers editor context and transport on `feat/editor-workspace-design`, based on main
-`7f88794ce7bf477a8ed72012900b17920ac6f331`. Verify live GitHub state before acting
-and skip this increment if already integrated. The clip title and draft state belong
-above the media. Playback and source time belong by the filmstrip. Its axis spans
-full source time independently of the trim selection. Stack the inspector through
-768px. Existing startup research and the original synthetic sample inform this pass.
+The selected work is the standalone decoder runtime in [#2](https://github.com/jaydenpiao/cliplane/issues/2).
+Branch `feat/decoder-runtime-bundle`, worktree `/workspace/work/cliplane-decoder-runtime`,
+base main `79c98c71f94a27f2f5584f9707f8b188bb623e79`. Keep the primary checkout and
+running app intact. The build uses a dedicated digest-pinned base and fixed-path
+worker. The bounded result stream stages allowlisted files for a later adapter.
+The scope and smoke command are in [decoder runtime](../security/decoder-runtime.md).
+The API still uses native execution. Behavioral enforcement, container identity
+cancellation, upload probing and queued-job integration remain open under #2.
 
-The baseline regression showed `0:02` and `0:06` around a four-second selection
-on a 12-second source. The updated workflow expects `0:00` and `0:12` and verifies
-the visible source clock follows a real seek. Independent source review approved.
-Browser inspection used the original 65-second sample at 1440, 768, 390 and 320px.
-Eight frames decoded and playback advanced at each width. The editor restored
-focus after Escape. No horizontal overflow was measured. Scoped axe scans at
-1440 and 390px returned zero violations. The README's editor screenshot is current.
+Local `npm run check` passes 168 TypeScript and 27 media tests, lint, types and
+build. Independent source review approves the image and artifact boundary. The
+image built locally with a session-only CA secret. The smoke command rejected the
+unsupported local daemon before creating a container. The hosted Quality container
+job must pass real synthetic probe, analyze and render before merge.
 
-Evidence and active work are recorded in `/workspace/work/editor-workspace-design/checkpoint.md`
-and the cumulative ledger `/workspace/work/iteration-ledger.md`. Require the full
-check, browser workflow and actual responsive/keyboard/axe evidence before review.
-Integration requires passing Quality, browser, container, Secrets and CodeQL on the
-current reviewed revision, with verified jaydenpiao attribution.
+The private plan and run logs are in `/workspace/work/decoder-runtime/`. The cumulative
+ledger is `/workspace/work/iteration-ledger.md`. Verify the live PR before starting
+another increment. Use full checks, dedicated image smoke and independent source
+review. Keep `decoderIsolationQualified: false` until the full boundary is proven.
+
+## Editor design delivery
+
+[PR #52](https://github.com/jaydenpiao/cliplane/pull/52) merged as `79c98c7` after all
+11 current checks passed on `1e8550fb476d224c1af727c07d19b503afff6c23`. #51 is Done.
+Main Quality, Secrets and CodeQL passed. The editor shows the clip title and draft
+status, groups playback and source time by the filmstrip, and stacks the inspector
+through 768px. The full recording duration now labels the filmstrip separately from
+the selected duration. The old axis bug was reproduced and covered by a regression.
+Six browser workflows and real 1440, 768, 390 and 320px inspection passed. The README
+has a current editor capture. See `/workspace/work/editor-workspace-design/checkpoint.md`.
+Preserve the user's modern light design priority in future UI work.
 
 ## Studio entry, README and session preview
 
@@ -51,10 +61,10 @@ README. Keep the running app available and preserve its checkout/dependencies/da
 Quality, Secrets and CodeQL green. Controller preflight and the reviewed temporary
 Vitest matcher pin are delivered. #48 tracks official replacement and documents
 the pin's compatibility and bundled-copy limits. App decoding remains native, and
-preflight reports `decoderIsolationQualified: false`. #2 is Ready. The dedicated
-image and bounded artifact protocol research is parked in
-`/workspace/work/decoder-runtime/{recon.md,research.md}`. Resume after the current
-user-prioritized design pass.
+preflight reports `decoderIsolationQualified: false`. The current #2 increment
+adds the dedicated image and bounded bundle. The local driver-none Docker remains
+unsupported. Keep application integration and behavioral enforcement scoped to
+separate increments. The archived research is in `/workspace/work/decoder-runtime/recon.md`.
 
 ## Previous workbench delivery
 
@@ -138,9 +148,9 @@ Do not spin, repeat passed checks or buy upgrades.
 
 ## Next engineering work and boundaries
 
-After the current editor design increment, resume #2 decoder isolation: native process cancellation and
-lease/COMMIT fencing are delivered, but per-job filesystem/network isolation,
-behaviorally qualified aggregate quotas and bounded artifact export remain open.
+Continue #2 after this image and protocol increment. Native process cancellation
+and lease/COMMIT fencing are delivered. Per-job filesystem and network isolation,
+aggregate quotas and verified handoff need behavioral qualification and integration.
 Older rootless Docker ignored cgroup flags; qualify the current runtime rather than
 assuming flags enforce limits. Then storage/job adapters precede managed deployment.
 See [decoder lifecycle](../security/decoder-lifecycle.md), the selected issue and
@@ -170,7 +180,7 @@ information and private distribution drafts outside this public repository.
 ```sh
 git status --short
 git log -3 --oneline
-gh issue view 51 --repo jaydenpiao/cliplane
+gh issue view 2 --repo jaydenpiao/cliplane
 gh pr list --repo jaydenpiao/cliplane --state open
 cat /workspace/work/iteration-ledger.md
 curl -fsS http://localhost:4000/api/health
