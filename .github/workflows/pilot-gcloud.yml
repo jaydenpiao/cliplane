@@ -1,0 +1,41 @@
+name: Pilot Google Cloud authentication
+on:
+  repository_dispatch:
+    types: [cliplane-pilot-auth]
+permissions: {}
+concurrency:
+  group: cliplane-pilot-auth
+  cancel-in-progress: false
+jobs:
+  authenticate:
+    if: >-
+      github.repository == 'jaydenpiao/cliplane' &&
+      github.repository_id == '1459551943' &&
+      github.repository_owner_id == '71306047' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'repository_dispatch' &&
+      github.event.action == 'cliplane-pilot-auth'
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate and mask the pilot identity target
+        id: target
+        run: node scripts/cloud/pilot-target.mjs
+      - name: Mint a short-lived pilot access token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ steps.target.outputs.project_id }}
+          workload_identity_provider: ${{ steps.target.outputs.provider }}
+          service_account: ${{ steps.target.outputs.service_account }}
+          token_format: access_token
+          access_token_lifetime: 300s
+          create_credentials_file: false
+          export_environment_variables: false

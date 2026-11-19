@@ -4,25 +4,21 @@ Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying 
 
 ## Goal and current increment
 
-The selected work is the standalone decoder runtime in [#2](https://github.com/jaydenpiao/cliplane/issues/2).
-Branch `feat/decoder-runtime-bundle`, worktree `/workspace/work/cliplane-decoder-runtime`,
-base main `79c98c71f94a27f2f5584f9707f8b188bb623e79`. Keep the primary checkout and
-running app intact. The build uses a dedicated digest-pinned base and fixed-path
-worker. The bounded result stream stages allowlisted files for a later adapter.
-The scope and smoke command are in [decoder runtime](../security/decoder-runtime.md).
-The API still uses native execution. Behavioral enforcement, container identity
-cancellation, upload probing and queued-job integration remain open under #2.
+[PR #53](https://github.com/jaydenpiao/cliplane/pull/53) delivered the standalone
+decoder image and bounded artifact protocol as `6575ad0`. All 11 checks passed
+on reviewed head `95ee682`. Hosted synthetic probe, analyze and render smoke
+succeeded. The app still decodes natively and `decoderIsolationQualified: false`
+holds. [#2](https://github.com/jaydenpiao/cliplane/issues/2) is ready for later
+behavioral enforcement and fail-closed upload and job integration.
 
-Local `npm run check` passes 168 TypeScript and 27 media tests, lint, types and
-build. Independent source review approves the image and artifact boundary. The
-image built locally with a session-only CA secret. The smoke command rejected the
-unsupported local daemon before creating a container. The hosted Quality container
-job must pass real synthetic probe, analyze and render before merge.
-
-The private plan and run logs are in `/workspace/work/decoder-runtime/`. The cumulative
-ledger is `/workspace/work/iteration-ledger.md`. Verify the live PR before starting
-another increment. Use full checks, dedicated image smoke and independent source
-review. Keep `decoderIsolationQualified: false` until the full boundary is proven.
+The active [#27](https://github.com/jaydenpiao/cliplane/issues/27) increment
+prepares a distinct keyless pilot identity in the owner's selected project and
+reuses the existing GitHub staging environment. The owner-run bootstrap grants
+only identity impersonation. The exact main pilot workflow verifies short-lived
+credential exchange without resource writes. Verify live integration, then use
+the [cloud runbook](../runbooks/google-cloud.md) for the owner bootstrap and
+positive dispatch. Keep project and billing identifiers private. Pilot resources,
+production-image validation and the remaining staging and release gates are open.
 
 ## Editor design delivery
 
@@ -61,8 +57,7 @@ README. Keep the running app available and preserve its checkout/dependencies/da
 Quality, Secrets and CodeQL green. Controller preflight and the reviewed temporary
 Vitest matcher pin are delivered. #48 tracks official replacement and documents
 the pin's compatibility and bundled-copy limits. App decoding remains native, and
-preflight reports `decoderIsolationQualified: false`. The current #2 increment
-adds the dedicated image and bounded bundle. The local driver-none Docker remains
+preflight reports `decoderIsolationQualified: false`. PR #53 delivered the dedicated image and bounded bundle. The local driver-none Docker remains
 unsupported. Keep application integration and behavioral enforcement scoped to
 separate increments. The archived research is in `/workspace/work/decoder-runtime/recon.md`.
 
@@ -115,7 +110,7 @@ Raw take02, credentials and browser profiles remain private under
 
 The prescribed projectless output directory is not writable here. Link canonical
 public GitHub demo/screenshots. Source, tests, images, research/spec/plan and demo are
-integrated by PR #46. Do not repeat #45; continue the bounded #2 increment above. Require verify/browser/container/Secrets/CodeQL and verified
+integrated by PR #46. Do not repeat #45 or the merged #2 image and protocol increment. Require verify/browser/container/Secrets/CodeQL and verified
 jaydenpiao attribution before the authorized merge. A merge does not imply deployment.
 
 CI browser checkpoint: the initial hosted run selected ambient Chromium 157
@@ -148,7 +143,7 @@ Do not spin, repeat passed checks or buy upgrades.
 
 ## Next engineering work and boundaries
 
-Continue #2 after this image and protocol increment. Native process cancellation
+Continue #2 after the pilot access increment. Native process cancellation
 and lease/COMMIT fencing are delivered. Per-job filesystem and network isolation,
 aggregate quotas and verified handoff need behavioral qualification and integration.
 Older rootless Docker ignored cgroup flags; qualify the current runtime rather than
