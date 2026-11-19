@@ -158,3 +158,8 @@ ffmpeg -v error -xerror -i "$scratch/media-after.mp4" -map 0:v:0 -f null -
 master_hash="$(docker exec "$app_id" sha256sum "/app/data/$workspace_id/$source_id/original/master.bin" | cut -d ' ' -f 1)"
 [[ "$master_hash" == "$expected_master_hash" ]]
 echo 'App container recreation preserved the authenticated session, playable media and original master hash.'
+
+if [[ -n "${CLIPLANE_SMOKE_EVIDENCE:-}" ]]; then
+  jq -n --arg commit "$(git rev-parse HEAD)" --arg app "$image" --arg postgres "$db_image" \
+    '{commit:$commit,app_image_id:$app,postgres_image_id:$postgres}' > "$CLIPLANE_SMOKE_EVIDENCE"
+fi

@@ -18,13 +18,18 @@ minted a five-minute token. The existing GitHub staging environment is reused.
 The identity has no cloud resource roles granted by that setup. #27 is Ready
 for the remaining scoped pilot configuration. No cloud workloads are deployed.
 
-The active [#28](https://github.com/jaydenpiao/cliplane/issues/28) increment
-exercises the exact production app image with disposable PostgreSQL and storage
-over loopback HTTPS in the Quality container job. It reuses the real creator
-workflow and cross-workspace check, then recreates the app and checks the
-session, media and immutable master. Verify current CI before claiming the image
-passed. Trusted TLS at the target, interrupted-job recovery, pilot access and
-resource review remain ahead. See [development](../development.md).
+[PR #55](https://github.com/jaydenpiao/cliplane/pull/55) delivered the exact
+production image smoke as `25187fe`. Hosted managed Chromium, guard checks,
+tenant isolation and recreation preserving session, decoded media and master
+hash passed. [#28](https://github.com/jaydenpiao/cliplane/issues/28) remains
+open for in-flight recovery and target TLS.
+
+The active #28 increment builds, smoke-tests and packages the exact production
+app and PostgreSQL images together on an opt-in main event. The encrypted
+package has a short retention window; the private recipient stays with the
+operator. Establish the actual artifact and run hashes before transfer. Prepare
+VM-scoped private access, offline runtime, resource costs and rollback
+separately. No cloud rollout is assumed. See [development](../development.md).
 
 ## Editor design delivery
 
