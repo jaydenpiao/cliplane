@@ -1,5 +1,7 @@
 name: Quality
 on:
+  repository_dispatch:
+    types: [cliplane-pilot-package]
   pull_request:
   push:
     branches: [main, "feat/**"]
@@ -7,6 +9,7 @@ permissions:
   contents: read
 jobs:
   verify:
+    if: github.event_name != 'repository_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -47,6 +50,7 @@ jobs:
           name: dependency-sbom
           path: sbom.spdx.json
   browser:
+    if: github.event_name != 'repository_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -85,9 +89,21 @@ jobs:
             work/e2e-results
             /tmp/cliplane.log
   container:
+    if: >-
+      github.event_name != 'repository_dispatch' ||
+      (github.repository == 'jaydenpiao/cliplane' &&
+       github.ref == 'refs/heads/main' &&
+       github.event.action == 'cliplane-pilot-package')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate pilot package request
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node scripts/package-pilot.mjs "$RUNNER_TEMP/cliplane-pilot-recipient.pem"
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -119,4 +135,22 @@ jobs:
         run: |
           set -euo pipefail
           app_image_id="$(docker image inspect --format '{{.Id}}' cliplane:ci)"
+          if [[ "$GITHUB_EVENT_NAME" == repository_dispatch ]]; then
+            export CLIPLANE_SMOKE_EVIDENCE="$RUNNER_TEMP/cliplane-production-smoke.json"
+          fi
           bash scripts/production-smoke.sh "$app_image_id"
+      - name: Seal the smoke-tested image package
+        if: github.event_name == 'repository_dispatch'
+        timeout-minutes: 8
+        run: |
+          bash scripts/package-pilot.sh "$RUNNER_TEMP/cliplane-production-smoke.json" \
+            "$RUNNER_TEMP/cliplane-pilot-recipient.pem" "$RUNNER_TEMP/cliplane-pilot.cms"
+      - name: Retain the encrypted pilot package
+        if: github.event_name == 'repository_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cliplane-pilot-images
+          path: ${{ runner.temp }}/cliplane-pilot.cms
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
