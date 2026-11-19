@@ -50,9 +50,9 @@ sets `decoderIsolationQualified: false`. The current rootless runtime rejects at
 safe daemon discovery before creating a container. App native media execution and
 the full issue #2 isolation gate remain unchanged. See
 [research and evidence](research/decoder-controller-preflight.md) for prerequisites
-and remaining behavioral tests. The hosted container job runs the same preflight
-against its trusted built image to validate positive readbacks; it does not run
-untrusted media or establish the future decoder image/export boundary.
+and remaining behavioral tests. The hosted container job builds the dedicated
+media image, checks controller readback and processes the original synthetic
+fixture. See the [decoder runtime and smoke command](security/decoder-runtime.md).
 
 ## Tools, skills and plugins
 

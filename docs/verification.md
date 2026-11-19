@@ -3,6 +3,19 @@
 Updated: 2026-11-17 (America/Los_Angeles). Use live PR/Actions state for the delivered
 revision. A merged source tree does not imply an application deployment.
 
+## Standalone decoder image and bundle (#2)
+
+- The fixed-path worker emits a bounded stream. The host stages only expected
+  artifacts and rejects invalid manifests, truncation and trailing bytes.
+- Local `npm run check` passed 168 TypeScript tests, 27 media tests, lint, types
+  and build. The new tests cover request validation and sanitized diagnostics,
+  real synthetic probing, and binary staging on success and failure.
+- Independent source review approved. Local build used the session CA as a
+  BuildKit secret, then the gated smoke rejected the unsupported rootless daemon
+  before container creation. Hosted original-media smoke is required for merge.
+- [Protocol and command](security/decoder-runtime.md). Behavioral isolation and
+  application integration remain open in #2.
+
 ## Editor context and playback (#51)
 
 The clip title and save state stay visible above the media. Play and the source

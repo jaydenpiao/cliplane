@@ -53,7 +53,7 @@ volume destination was covered by bounded tmpfs. Explicit `finally` cleanup
 removed the exact container, and an identity-specific check confirmed absence.
 See [the scoped evidence and preflight decision](../research/decoder-controller-preflight.md).
 
-The next increment is an operator command,
+The operator command is
 `npm run decoder:preflight -- --image 'sha256:<local-helper-image-id>'`, requiring
 a trusted immutable local helper with no declared volumes and no implicit pull.
 An unsupported daemon must return nonzero before container creation. Supported
@@ -61,10 +61,11 @@ candidates must compare effective controller values inside the bounded probe.
 Every result retains `decoderIsolationQualified: false`; this controller preflight
 does not enable a sandbox. Application media execution remains native.
 
-Full issue #2 gates remain open: dedicated per-job filesystem/network/resource
-isolation, behaviorally qualified aggregate quotas, a dedicated immutable decoder
-image, bounded scratch/artifact export and container-identity cancellation tied to
-existing lease/COMMIT fencing. Per-process address/CPU/file limits and real-UID
+The [standalone decoder image and result stream](decoder-runtime.md) can process an
+original fixture on a supported daemon. Full issue #2 gates remain open for
+behavioral filesystem, network and aggregate quota enforcement, and container
+identity cancellation tied to the existing lease and COMMIT fencing. Per-process
+address/CPU/file limits and real-UID
 NPROC accounting do not prove per-job aggregate limits. Tmpfs consumes memory, can
 swap and disappears when its container stops; ordinary bind output directories
 and persistent Docker logs are not bounded storage.
