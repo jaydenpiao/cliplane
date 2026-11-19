@@ -44,6 +44,43 @@ deployment target and Service Account User for its runtime identity. Runtime
 accounts get their database, secret and storage access; migration stays separate.
 Do not grant project-wide cloud admin to CI to work around missing permissions.
 
+## Private pilot authentication
+
+The owner may choose the existing project for the isolated pilot. Audit existing
+workloads before planning resources there. Use new Cliplane-specific identities
+and resources. The pilot check uses the existing GitHub `staging` environment.
+The cloud identity provider enforces the immutable owner and repository IDs,
+the exact staging subject, main ref, reviewed main commit, pilot workflow path
+and dispatch trigger.
+GitHub settings and environment variables are unnecessary for this check.
+
+After the pilot workflow is on main, run from an owner-authenticated Cloud Shell:
+
+```sh
+bash scripts/cloud/bootstrap-pilot-access.sh YOUR_REVIEWED_PROJECT_ID REVIEWED_MAIN_SHA
+bash scripts/cloud/bootstrap-pilot-access.sh YOUR_REVIEWED_PROJECT_ID REVIEWED_MAIN_SHA --apply
+```
+
+Review the preview before apply. The bootstrap requires the existing IAM,
+IAM Credentials and STS APIs and refuses a pilot pool or account that already
+exists. It creates a separate pool, provider, service account and one account-level
+impersonation binding. It grants no cloud resource roles. If creation stops
+partway, inspect the named pilot pool, provider condition and account. If all
+three match the preview and only the binding failed, rerun just the final
+service-account policy command with the real project number. The operator can
+disable the pilot provider or remove its impersonation binding to prevent new
+exchanges. Existing short-lived tokens expire within their issued lifetime.
+
+Pin the full reviewed main commit SHA for this check. If main moves, that
+provider refuses the new revision. Pass the project ID and printed numeric
+project number privately to the operator.
+Dispatch `cliplane-pilot-auth` with string `project_id` and `project_number` fields.
+The job validates and masks identifiers and requests a five-minute credential,
+which it then discards. A passing run establishes federation and impersonation.
+Disable the auth-only provider after verifying the check. A separate review
+covers the intended pilot VM, any exact-resource grants, and application release
+checks.
+
 ## GitHub deployment environment
 
 Create a GitHub environment named staging, restricted to main. Set these non-secret
