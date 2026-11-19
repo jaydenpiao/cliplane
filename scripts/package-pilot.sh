@@ -53,7 +53,7 @@ trap 'exit 143' TERM
 docker image save "$app_image" "$postgres_image" | gzip -n > "$scratch/images.tar.gz"
 archive_bytes="$(stat -c '%s' "$scratch/images.tar.gz")"
 if (( archive_bytes >= limit )); then
-  echo 'Compressed images exceed the private package size limit.' >&2
+  printf 'Compressed images are %s bytes and exceed the private package size limit.\n' "$archive_bytes" >&2
   exit 1
 fi
 archive_hash="$(sha256sum -- "$scratch/images.tar.gz")"
