@@ -26,9 +26,9 @@ open for in-flight recovery and target TLS.
 
 The active #28 increment builds, smoke-tests and packages the exact production
 app and PostgreSQL images together on an opt-in main event. The encrypted
-package has a short retention window; the private recipient stays with the
-operator. Establish the actual artifact and run hashes before transfer. Prepare
-VM-scoped private access, offline runtime, resource costs and rollback
+package is an asset on an unpublished release draft. The private recipient
+stays with the operator. Establish the actual archive and run hashes before
+transfer. Prepare VM-scoped private access, offline runtime, resource costs and rollback
 separately. No cloud rollout is assumed. See [development](../development.md).
 
 ## Editor design delivery

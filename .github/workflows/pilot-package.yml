@@ -1,0 +1,65 @@
+name: Private pilot package
+on:
+  repository_dispatch:
+    types: [cliplane-pilot-package]
+permissions: {}
+jobs:
+  package:
+    if: >-
+      github.repository == 'jaydenpiao/cliplane' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.action == 'cliplane-pilot-package'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate pilot package request
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node scripts/package-pilot.mjs "$RUNNER_TEMP/cliplane-pilot-recipient.pem"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: docker build -f infra/Dockerfile -t cliplane:pilot .
+      - name: Install host media verification tools
+        timeout-minutes: 8
+        run: bash scripts/install-ci-ffmpeg.sh
+      - name: Install managed Chromium for production smoke
+        timeout-minutes: 6
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the exact production app image over HTTPS
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_image_id="$(docker image inspect --format '{{.Id}}' cliplane:pilot)"
+          export CLIPLANE_SMOKE_EVIDENCE="$RUNNER_TEMP/cliplane-production-smoke.json"
+          bash scripts/production-smoke.sh "$app_image_id"
+      - name: Seal the smoke-tested image package
+        timeout-minutes: 8
+        run: |
+          bash scripts/package-pilot.sh "$RUNNER_TEMP/cliplane-production-smoke.json" \
+            "$RUNNER_TEMP/cliplane-pilot-recipient.pem" "$RUNNER_TEMP/cliplane-pilot.cms"
+      - name: Retain the encrypted package in an unpublished release draft
+        timeout-minutes: 8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA"
+          tag="cliplane-pilot-package-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          gh release create "$tag" "$RUNNER_TEMP/cliplane-pilot.cms" --draft --prerelease \
+            --target "$GITHUB_SHA" --title "Cliplane private pilot package $GITHUB_RUN_ID" \
+            --notes "Encrypted owner transfer for reviewed run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT. Keep this release unpublished."
+          gh release view "$tag" --json isDraft,targetCommitish,assets |
+            jq -e --arg commit "$GITHUB_SHA" \
+              '.isDraft and .targetCommitish == $commit and [.assets[].name] == ["cliplane-pilot.cms"]'
