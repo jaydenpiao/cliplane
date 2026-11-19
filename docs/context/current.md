@@ -11,14 +11,20 @@ succeeded. The app still decodes natively and `decoderIsolationQualified: false`
 holds. [#2](https://github.com/jaydenpiao/cliplane/issues/2) is ready for later
 behavioral enforcement and fail-closed upload and job integration.
 
-The active [#27](https://github.com/jaydenpiao/cliplane/issues/27) increment
-prepares a distinct keyless pilot identity in the owner's selected project and
-reuses the existing GitHub staging environment. The owner-run bootstrap grants
-only identity impersonation. The exact main pilot workflow verifies short-lived
-credential exchange without resource writes. Verify live integration, then use
-the [cloud runbook](../runbooks/google-cloud.md) for the owner bootstrap and
-positive dispatch. Keep project and billing identifiers private. Pilot resources,
-production-image validation and the remaining staging and release gates are open.
+[PR #54](https://github.com/jaydenpiao/cliplane/pull/54) delivered the distinct
+pilot identity bootstrap as `66e442d`. The owner applied it and
+[run 44439374660](https://github.com/jaydenpiao/cliplane/actions/runs/44439374660)
+minted a five-minute token. The existing GitHub staging environment is reused.
+The identity has no cloud resource roles granted by that setup. #27 is Ready
+for the remaining scoped pilot configuration. No cloud workloads are deployed.
+
+The active [#28](https://github.com/jaydenpiao/cliplane/issues/28) increment
+exercises the exact production app image with disposable PostgreSQL and storage
+over loopback HTTPS in the Quality container job. It reuses the real creator
+workflow and cross-workspace check, then recreates the app and checks the
+session, media and immutable master. Verify current CI before claiming the image
+passed. Trusted TLS at the target, interrupted-job recovery, pilot access and
+resource review remain ahead. See [development](../development.md).
 
 ## Editor design delivery
 

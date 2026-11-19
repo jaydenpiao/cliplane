@@ -112,3 +112,13 @@ jobs:
           set -euo pipefail
           decoder_image_id="$(docker image inspect --format '{{.Id}}' cliplane-decoder:ci)"
           python3 -B scripts/decoder/smoke.py --image "$decoder_image_id"
+      - name: Install managed Chromium for production smoke
+        timeout-minutes: 6
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the production app image over HTTPS
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_image_id="$(docker image inspect --format '{{.Id}}' cliplane:ci)"
+          bash scripts/production-smoke.sh "$app_image_id"
