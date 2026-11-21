@@ -25,11 +25,25 @@ hash passed. [PR #58](https://github.com/jaydenpiao/cliplane/pull/58) delivered 
 opt-in packaging and encrypted release-draft transfer of the exact smoke-tested
 app and PostgreSQL images. See [development](../development.md).
 
-The [#28](https://github.com/jaydenpiao/cliplane/issues/28) image smoke now interrupts a
-synthetic render before publication and recreates the app against its existing
-volumes. It checks that the same job publishes one playable export after the original
-lease expires and retains the approved edit and rights revisions. Target TLS
-verification remains open.
+[PR #59](https://github.com/jaydenpiao/cliplane/pull/59) extended the image smoke to interrupt a
+synthetic render before publication and recreate the app against its existing
+volumes. Hosted CI verified that the same job publishes one playable export after the
+original lease expires and retains the approved edit and rights revisions. Trusted
+target TLS verification remains open in [#28](https://github.com/jaydenpiao/cliplane/issues/28).
+
+## Release work remaining
+
+- Finish [decoder isolation #2](https://github.com/jaydenpiao/cliplane/issues/2). Verify
+  the runtime's resource controls and cancellation, then make upload probes and jobs fail closed.
+- Add [durable resumable ingest #3](https://github.com/jaydenpiao/cliplane/issues/3) and
+  separate job execution for managed hosting. Complete [account lifecycle #8](https://github.com/jaydenpiao/cliplane/issues/8)
+  and [restore and rollback drills #19](https://github.com/jaydenpiao/cliplane/issues/19).
+- Verify the private target end to end, including trusted HTTPS, the actual browser workflow
+  and persistence on recreation. [#27](https://github.com/jaydenpiao/cliplane/issues/27)
+  is waiting on authenticated pilot access evidence.
+- Before public beta, complete operator legal review, repository protections and
+  applicable supply-chain and browser QA. [Release gates](../project/workflow.md)
+  and the [backlog](../backlog.md) track the remaining acceptance and product work.
 
 ## Editor design delivery
 
