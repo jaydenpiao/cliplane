@@ -58,11 +58,19 @@ mounts and runtime controls as the decoder. It checks that the input and root re
 writes, a synthetic sibling and common runtime socket paths are absent, the process
 has no capabilities and its only interface is loopback. Regular-file writes verify
 scratch access before the smoke tests the file-size and scratch-capacity ceilings.
-These limits are for the smoke and bundle
-format, with separate sizing and enforcement needed for production workloads.
 
-The preflight always reports `decoderIsolationQualified: false`. The local rootless
-driver-none daemon cannot enforce the requested CPU, memory and PID limits. Future
-work must verify CPU, memory and PID enforcement and container identity cancellation,
-then integrate both upload probing and queued media jobs. These hosted smoke results
-only describe the tested runtime and profile.
+Fresh test containers check the 384 MiB memory limit, disabled swap, one-CPU
+quota and 48-PID limit before running a bounded workload. The CPU test observes
+throttling in the container's cgroup. The memory test observes the allocator
+child's termination and the cgroup's out-of-memory counters. The PID test
+observes a rejected process creation and the PID-limit event counter. The
+cancellation test identifies a live descendant in a separate session, stops its
+owned container and verifies the descendant has exited and the container is gone.
+These checks require the local test runner to observe that container's host
+process identities. The smoke and bundle limits are fixture settings. Production
+workloads need their own sizing and verification.
+
+The preflight and smoke report `decoderIsolationQualified: false`. The local
+rootless driver-none daemon fails controller preflight. The API still uses native
+decoding. The upload and job paths need a fail-closed adapter that preserves
+ownership, approval revisions, deadlines and cleanup.
