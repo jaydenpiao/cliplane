@@ -1,6 +1,6 @@
 # Current handoff
 
-Updated 2026-11-17 (America/Los_Angeles). Verify live Git/GitHub before relying on this record.
+Updated 2026-11-20 (America/Los_Angeles). Verify live Git/GitHub before relying on this record.
 
 ## Goal and current increment
 
@@ -15,21 +15,21 @@ behavioral enforcement and fail-closed upload and job integration.
 pilot identity bootstrap as `66e442d`. The owner applied it and
 [run 44439374660](https://github.com/jaydenpiao/cliplane/actions/runs/44439374660)
 minted a five-minute token. The existing GitHub staging environment is reused.
-The identity has no cloud resource roles granted by that setup. #27 is Ready
-for the remaining scoped pilot configuration. No cloud workloads are deployed.
+The identity setup granted impersonation only. [#27](https://github.com/jaydenpiao/cliplane/issues/27)
+tracks private pilot verification. Target access and operator evidence are kept privately.
 
 [PR #55](https://github.com/jaydenpiao/cliplane/pull/55) delivered the exact
 production image smoke as `25187fe`. Hosted managed Chromium, guard checks,
 tenant isolation and recreation preserving session, decoded media and master
-hash passed. [#28](https://github.com/jaydenpiao/cliplane/issues/28) remains
-open for in-flight recovery and target TLS.
+hash passed. [PR #58](https://github.com/jaydenpiao/cliplane/pull/58) delivered the
+opt-in packaging and encrypted release-draft transfer of the exact smoke-tested
+app and PostgreSQL images. See [development](../development.md).
 
-The active #28 increment builds, smoke-tests and packages the exact production
-app and PostgreSQL images together on an opt-in main event. The encrypted
-package is an asset on an unpublished release draft. The private recipient
-stays with the operator. Establish the actual archive and run hashes before
-transfer. Prepare VM-scoped private access, offline runtime, resource costs and rollback
-separately. No cloud rollout is assumed. See [development](../development.md).
+The [#28](https://github.com/jaydenpiao/cliplane/issues/28) image smoke now interrupts a
+synthetic render before publication and recreates the app against its existing
+volumes. It checks that the same job publishes one playable export after the original
+lease expires and retains the approved edit and rights revisions. Target TLS
+verification remains open.
 
 ## Editor design delivery
 

@@ -93,12 +93,13 @@ verified access; personal distribution plans do not belong in this repository.
 
 The Quality container job tests the exact built app image on a disposable Docker
 network. It runs the real creator export and authenticated workspace-isolation
-workflows through loopback HTTPS using managed Chromium. The harness recreates
-the app container and verifies the prior session, playable media and original
-master hash against the retained test volumes. The job log records the checked
-commit, app image ID and PostgreSQL image ID. This covers local persistence and
-access guards. Target TLS, queued-job recovery and restore/rollback have separate
-release checks.
+workflows through loopback HTTPS using managed Chromium. The harness stops an
+in-flight render before publication, recreates the app with the same volumes
+and waits for the original two-minute lease to expire. It verifies that the
+same job publishes one playable export with the approved edit and rights
+revisions. The previous session, playable source and original master hash are
+checked across recreation. The job log records the commit, app image ID and
+PostgreSQL image ID. Target TLS and restore/rollback have separate release checks.
 
 On a Docker host with PostgreSQL image access, FFmpeg, OpenSSL, jq, project
 dependencies and a supported Playwright Chromium, run:
