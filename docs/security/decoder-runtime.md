@@ -47,15 +47,22 @@ decoder_image_id="$(docker image inspect --format '{{.Id}}' cliplane-decoder:ci)
 python3 scripts/decoder/smoke.py --image "$decoder_image_id"
 ```
 
-The command uses controller preflight before a fixed probe, analyze and short
-captioned render of the original synthetic fixture. It expects an eligible Docker
+The command uses controller preflight before checking the filesystem and network
+boundary and running a fixed probe, analyze and short captioned render of the
+original synthetic fixture. It expects an eligible Docker
 cgroup v2 daemon, Node/npm dependencies, and host FFmpeg and ffprobe. The smoke uses
 one read-only source bind, a read-only root, no network and bounded scratch. The
 container receives no host output directory. The smoke inspects returned media and
-checks the original fixture is unchanged. These limits are for the smoke and bundle
+checks the original fixture is unchanged. A trusted test command uses the same image,
+mounts and runtime controls as the decoder. It checks that the input and root reject
+writes, a synthetic sibling and common runtime socket paths are absent, the process
+has no capabilities and its only interface is loopback. Regular-file writes verify
+scratch access before the smoke tests the file-size and scratch-capacity ceilings.
+These limits are for the smoke and bundle
 format, with separate sizing and enforcement needed for production workloads.
 
 The preflight always reports `decoderIsolationQualified: false`. The local rootless
 driver-none daemon cannot enforce the requested CPU, memory and PID limits. Future
-work must verify actual job limits, source and socket isolation, cleanup and container
-identity cancellation, then integrate both upload probing and queued media jobs.
+work must verify CPU, memory and PID enforcement and container identity cancellation,
+then integrate both upload probing and queued media jobs. These hosted smoke results
+only describe the tested runtime and profile.

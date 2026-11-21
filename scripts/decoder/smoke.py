@@ -11,8 +11,12 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO, cast
+
+from boundary_probe import BOUNDARY_CHECKS, UNMOUNTED_SOURCE_NAME
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
@@ -68,8 +72,15 @@ def owned_container(target: str, token: str, image: str, *, allow_absent: bool =
     return identity
 
 
-def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
-    operation = request["operation"]
+@contextmanager
+def container_stream(
+    image: str,
+    source: Path,
+    input_data: bytes,
+    *,
+    entrypoint: str | None = None,
+    args: tuple[str, ...] = (),
+) -> Iterator[BinaryIO]:
     token = uuid.uuid4().hex
     name = f"cliplane-decoder-smoke-{token}"
     container_id = None
@@ -105,7 +116,9 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
             f"type=bind,src={source},dst=/input/source,readonly",
             # Explicit empty values override proxy configuration from Docker CLI defaults.
             *(f"--env={key}=" for name in PROXY_NAMES for key in (name, name.lower())),
+            *(("--entrypoint", entrypoint) if entrypoint is not None else ()),
             image,
+            *args,
         )
         candidate_id = created.stdout.strip()
         require(
@@ -114,8 +127,8 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
         container_id = owned_container(candidate_id, token, image)
         if container_id is None:
             raise SmokeError("container identity unavailable")
-        with tempfile.TemporaryFile(dir=destination.parent) as request_file:
-            request_file.write(json.dumps(request).encode("utf-8"))
+        with tempfile.TemporaryFile(dir=source.parent) as request_file:
+            request_file.write(input_data)
             request_file.seek(0)
             # A separate process group and an external deadline keep even a stalled pipe read bounded.
             process = subprocess.Popen(
@@ -127,10 +140,9 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
             )
             try:
                 if process.stdout is None:
-                    raise SmokeError("decoder bundle stream missing")
-                result = read_bundle(cast(BinaryIO, process.stdout), destination, operation)
+                    raise SmokeError("decoder output stream missing")
+                yield cast(BinaryIO, process.stdout)
                 require(process.wait(timeout=5) == 0, "decoder exited unsuccessfully")
-                return result
             finally:
                 if process.poll() is None:
                     try:
@@ -149,6 +161,26 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
             require(
                 owned_container(target, token, image, allow_absent=True) is None, "owned container remains"
             )
+
+
+def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
+    with container_stream(image, source, json.dumps(request).encode("utf-8")) as stream:
+        return read_bundle(stream, destination, request["operation"])
+
+
+def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
+    script = Path(__file__).with_name("boundary_probe.py").read_bytes()
+    with container_stream(
+        image,
+        source,
+        script,
+        entrypoint="/usr/bin/python3",
+        args=("-I", "-B", "-u", "-", expected_hash, str(source.parent), str(ROOT)),
+    ) as stream:
+        for check in BOUNDARY_CHECKS:
+            expected = f"{check}\n".encode("ascii")
+            require(stream.readline(len(expected)) == expected, f"boundary check failed: {check}")
+        require(stream.read(1) == b"", "unexpected boundary probe output")
 
 
 def hash_file(path: Path) -> str:
@@ -230,11 +262,15 @@ def run_smoke(image: str) -> None:
     require(source_shape == (1280, 720, 24000, True, "h264"), "unexpected synthetic fixture metadata")
     with tempfile.TemporaryDirectory(prefix="cliplane-decoder-smoke-") as temporary:
         root = Path(temporary)
-        # Keep the worktree mode unchanged and expose only this synthetic source to UID 65534.
+        # A writable-mode synthetic copy makes EROFS distinguish the mount from POSIX permissions.
         source = root / "original.mp4"
         require(not any(char in str(source) for char in ',\r\n"'), "unsupported fixture staging path")
         shutil.copyfile(FIXTURE, source)
-        source.chmod(0o444)
+        source.chmod(0o666)
+        second_source = root / UNMOUNTED_SOURCE_NAME
+        shutil.copyfile(FIXTURE, second_source)
+        require(hash_file(second_source) == initial_hash, "unmounted fixture staging failed")
+        check_boundaries(image, source, initial_hash)
         metadata = decode(image, source, {"version": 1, "operation": "probe"}, root / "probe")
         require(
             (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
@@ -296,6 +332,7 @@ def run_smoke(image: str) -> None:
                 "phase": "decoder-image-smoke",
                 "verdict": "passed",
                 "decoderIsolationQualified": False,
+                "boundaryChecks": BOUNDARY_CHECKS,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
