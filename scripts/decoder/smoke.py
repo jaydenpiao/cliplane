@@ -10,13 +10,17 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, cast
 
 from boundary_probe import BOUNDARY_CHECKS, UNMOUNTED_SOURCE_NAME
+from cancellation_probe import CANCELLATION_CHILD_PREFIX, CANCELLATION_READY
+from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
@@ -31,6 +35,7 @@ OWNERSHIP_FORMAT = (
     f'"owner":{{{{json (index .Config.Labels "{OWNER_LABEL}")}}}}}}'
 )
 PROXY_NAMES = ("HTTP_PROXY", "HTTPS_PROXY", "FTP_PROXY", "ALL_PROXY", "NO_PROXY")
+EXITED_PROCESS_STATES = (b"Z", b"X", b"x")
 
 
 class SmokeError(ValueError):
@@ -72,6 +77,72 @@ def owned_container(target: str, token: str, image: str, *, allow_absent: bool =
     return identity
 
 
+def remove_owned_container(container_id: str, token: str, image: str) -> None:
+    removed = docker("container", "rm", "--force", container_id)
+    require(removed.returncode == 0, "owned container cleanup failed")
+    require(owned_container(container_id, token, image, allow_absent=True) is None, "owned container remains")
+
+
+@dataclass(frozen=True)
+class HostProcess:
+    state: bytes
+    parent: int
+    group: int
+    session: int
+    start_time: int
+
+
+def host_process(pid: int) -> HostProcess | None:
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_bytes()
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+    # The parenthesized command can contain spaces and closing parentheses.
+    _, separator, remainder = stat.rpartition(b") ")
+    fields = remainder.split()
+    require(bool(separator) and len(fields) > 19, "host process stat is malformed")
+    return HostProcess(fields[0], int(fields[1]), int(fields[2]), int(fields[3]), int(fields[19]))
+
+
+def find_host_descendant(container_id: str, child_token: bytes) -> tuple[int, int]:
+    result = docker("container", "top", container_id, "-eo", "pid")
+    rows = result.stdout.split()
+    require(result.returncode == 0 and rows[:1] == ["PID"], "owned container process lookup failed")
+    require(all(re.fullmatch(r"[1-9][0-9]*", pid) for pid in rows[1:]), "invalid container PID listing")
+    pids = {int(pid) for pid in rows[1:]}
+    matches = []
+    for pid in pids:
+        before = host_process(pid)
+        if before is None or before.session != pid or before.group != pid or before.parent not in pids:
+            continue
+        try:
+            argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        after = host_process(pid)
+        if (
+            argv[-2:] == [child_token, b""]
+            and after is not None
+            and (after.parent, after.group, after.session, after.start_time)
+            == (before.parent, before.group, before.session, before.start_time)
+            and after.state not in EXITED_PROCESS_STATES
+        ):
+            matches.append((pid, after.start_time))
+    require(len(matches) == 1, "live cancellation descendant could not be identified")
+    return matches[0]
+
+
+def verify_descendant_gone(pid: int, start_time: int) -> None:
+    deadline = time.monotonic() + 5
+    while True:
+        current = host_process(pid)
+        # An exited task can remain visible as a zombie until its parent reaps it.
+        if current is None or current.start_time != start_time or current.state in EXITED_PROCESS_STATES:
+            return
+        require(time.monotonic() < deadline, "cancellation descendant remains")
+        time.sleep(0.05)
+
+
 @contextmanager
 def container_stream(
     image: str,
@@ -80,10 +151,12 @@ def container_stream(
     *,
     entrypoint: str | None = None,
     args: tuple[str, ...] = (),
+    cancellation_token: bytes | None = None,
 ) -> Iterator[BinaryIO]:
     token = uuid.uuid4().hex
     name = f"cliplane-decoder-smoke-{token}"
     container_id = None
+    removed = False
     try:
         created = docker(
             "container",
@@ -142,7 +215,15 @@ def container_stream(
                 if process.stdout is None:
                     raise SmokeError("decoder output stream missing")
                 yield cast(BinaryIO, process.stdout)
-                require(process.wait(timeout=5) == 0, "decoder exited unsuccessfully")
+                if cancellation_token is None:
+                    require(process.wait(timeout=5) == 0, "decoder exited unsuccessfully")
+                else:
+                    descendant = find_host_descendant(container_id, cancellation_token)
+                    require(process.poll() is None, "cancellation container exited before stop")
+                    # Force removal stops the identified container while its client is still attached.
+                    remove_owned_container(container_id, token, image)
+                    removed = True
+                    verify_descendant_gone(*descendant)
             finally:
                 if process.poll() is None:
                     try:
@@ -153,14 +234,11 @@ def container_stream(
                 if process.stdout is not None:
                     process.stdout.close()
     finally:
-        # Resolve an ambiguous create by the opaque label, never by name alone.
-        target = container_id or owned_container(name, token, image, allow_absent=True)
-        if target is not None:
-            removed = docker("container", "rm", "--force", target)
-            require(removed.returncode == 0, "owned container cleanup failed")
-            require(
-                owned_container(target, token, image, allow_absent=True) is None, "owned container remains"
-            )
+        if not removed:
+            # Resolve an ambiguous create by the opaque label, never by name alone.
+            target = container_id or owned_container(name, token, image, allow_absent=True)
+            if target is not None:
+                remove_owned_container(target, token, image)
 
 
 def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
@@ -181,6 +259,32 @@ def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
             expected = f"{check}\n".encode("ascii")
             require(stream.readline(len(expected)) == expected, f"boundary check failed: {check}")
         require(stream.read(1) == b"", "unexpected boundary probe output")
+
+
+def check_resources(image: str, source: Path) -> None:
+    script = Path(__file__).with_name("resource_probe.py").read_bytes()
+    for case in RESOURCE_CHECKS:
+        with container_stream(
+            image, source, script, entrypoint="/usr/bin/python3", args=("-I", "-B", "-u", "-", case)
+        ) as stream:
+            expected = f"{case}\n".encode("ascii")
+            require(stream.readline(len(expected)) == expected, f"resource check failed: {case}")
+            require(stream.read(1) == b"", f"unexpected resource probe output: {case}")
+
+
+def check_cancellation(image: str, source: Path) -> None:
+    token = uuid.uuid4().hex
+    script = Path(__file__).with_name("cancellation_probe.py").read_bytes()
+    with container_stream(
+        image,
+        source,
+        script,
+        entrypoint="/usr/bin/python3",
+        args=("-I", "-B", "-u", "-", token),
+        cancellation_token=(CANCELLATION_CHILD_PREFIX + token).encode("ascii"),
+    ) as stream:
+        ready = f"{CANCELLATION_READY}\n".encode("ascii")
+        require(stream.readline(len(ready)) == ready, "cancellation descendant did not start")
 
 
 def hash_file(path: Path) -> str:
@@ -271,6 +375,8 @@ def run_smoke(image: str) -> None:
         shutil.copyfile(FIXTURE, second_source)
         require(hash_file(second_source) == initial_hash, "unmounted fixture staging failed")
         check_boundaries(image, source, initial_hash)
+        check_resources(image, source)
+        check_cancellation(image, source)
         metadata = decode(image, source, {"version": 1, "operation": "probe"}, root / "probe")
         require(
             (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
@@ -333,6 +439,8 @@ def run_smoke(image: str) -> None:
                 "verdict": "passed",
                 "decoderIsolationQualified": False,
                 "boundaryChecks": BOUNDARY_CHECKS,
+                "resourceChecks": list(RESOURCE_CHECKS),
+                "cancellationVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,

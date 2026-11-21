@@ -7,9 +7,9 @@ Updated 2026-11-20 (America/Los_Angeles). Verify live Git/GitHub before relying 
 [PR #53](https://github.com/jaydenpiao/cliplane/pull/53) delivered the standalone
 decoder image and bounded artifact protocol as `6575ad0`. All 11 checks passed
 on reviewed head `95ee682`. Hosted synthetic probe, analyze and render smoke
-succeeded. The app still decodes natively and `decoderIsolationQualified: false`
-holds. [#2](https://github.com/jaydenpiao/cliplane/issues/2) is ready for later
-behavioral enforcement and fail-closed upload and job integration.
+succeeded. The app still decodes natively. The smoke reports
+`decoderIsolationQualified: false`. [#2](https://github.com/jaydenpiao/cliplane/issues/2)
+tracks fail-closed upload and job integration and production runtime verification.
 
 [PR #54](https://github.com/jaydenpiao/cliplane/pull/54) delivered the distinct
 pilot identity bootstrap as `66e442d`. The owner applied it and
@@ -33,8 +33,10 @@ target TLS verification remains open in [#28](https://github.com/jaydenpiao/clip
 
 ## Release work remaining
 
-- Finish [decoder isolation #2](https://github.com/jaydenpiao/cliplane/issues/2). Verify
-  the runtime's resource controls and cancellation, then make upload probes and jobs fail closed.
+- Finish [decoder isolation #2](https://github.com/jaydenpiao/cliplane/issues/2). The
+  hosted smoke covers filesystem and network isolation, resource ceilings and
+  container cancellation. Make upload probes and jobs fail closed and validate the
+  production runtime and workload profile.
 - Add [durable resumable ingest #3](https://github.com/jaydenpiao/cliplane/issues/3) and
   separate job execution for managed hosting. Complete [account lifecycle #8](https://github.com/jaydenpiao/cliplane/issues/8)
   and [restore and rollback drills #19](https://github.com/jaydenpiao/cliplane/issues/19).
@@ -81,10 +83,11 @@ README. Keep the running app available and preserve its checkout/dependencies/da
 [PR #47](https://github.com/jaydenpiao/cliplane/pull/47) merged as `11b3062` with
 Quality, Secrets and CodeQL green. Controller preflight and the reviewed temporary
 Vitest matcher pin are delivered. #48 tracks official replacement and documents
-the pin's compatibility and bundled-copy limits. App decoding remains native, and
-preflight reports `decoderIsolationQualified: false`. PR #53 delivered the dedicated image and bounded bundle. The local driver-none Docker remains
-unsupported. Keep application integration and behavioral enforcement scoped to
-separate increments. The archived research is in `/workspace/work/decoder-runtime/recon.md`.
+the pin's compatibility and bundled-copy limits. PR #53 delivered the dedicated
+image and bounded bundle. [PR #60](https://github.com/jaydenpiao/cliplane/pull/60)
+verified filesystem and network boundaries and the file-size and scratch limits.
+The local driver-none Docker remains unsupported. The archived research is in
+`/workspace/work/decoder-runtime/recon.md`.
 
 ## Previous workbench delivery
 
