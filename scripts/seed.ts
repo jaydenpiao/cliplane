@@ -162,7 +162,7 @@ try {
       });
       console.log(`Created original sample: ${theme.name}`);
     }
-  const runner = new JobRunner(db, store);
+  const runner = new JobRunner(db, store, { executeMedia: media });
   while (await runner.processOne()) {
     /* Process real durable jobs. */
   }

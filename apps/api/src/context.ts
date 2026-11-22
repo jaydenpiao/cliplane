@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Database } from "../../../packages/db/src/index";
 import type { Identity } from "./auth";
 import type { Config } from "./config";
+import type { MediaExecutor } from "./media";
 import type { LocalObjectStore } from "./storage";
 import { parseRange } from "./storage";
 
@@ -10,7 +11,12 @@ declare module "fastify" {
     identity: Identity;
   }
 }
-export type App = FastifyInstance & { db: Database; store: LocalObjectStore; config: Config };
+export type App = FastifyInstance & {
+  db: Database;
+  store: LocalObjectStore;
+  config: Config;
+  executeMedia: MediaExecutor;
+};
 export function httpError(statusCode: number, message: string): Error & { statusCode: number } {
   return Object.assign(new Error(message), { statusCode });
 }

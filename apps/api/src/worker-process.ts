@@ -12,7 +12,14 @@ export function cancelMediaProcesses(): void {
   for (const child of active) killGroup(child);
 }
 
-export function runJsonProcess<T = any>(
+export class WorkerProcessExitError extends Error {
+  constructor(readonly exitCode: number) {
+    super("Media worker exited unsuccessfully");
+    this.name = "WorkerProcessExitError";
+  }
+}
+
+export function runJsonProcess<T = unknown>(
   command: string,
   args: string[],
   input: object,
@@ -64,7 +71,9 @@ export function runJsonProcess<T = any>(
       }
       if (code !== 0) {
         killGroup(child);
-        reject(new Error("Media could not be processed. Use a valid MP4, MOV, MKV or WebM recording."));
+        reject(
+          code === null ? new Error("Media worker stopped unexpectedly") : new WorkerProcessExitError(code),
+        );
         return;
       }
       try {

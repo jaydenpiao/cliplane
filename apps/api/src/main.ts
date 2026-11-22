@@ -1,14 +1,15 @@
 import { Database } from "../../../packages/db/src/index";
 import { getConfig } from "./config";
 import { expireSources, JobRunner } from "./jobs";
+import { media } from "./media";
 import { buildApp } from "./server";
 import { cancelMediaProcesses } from "./worker-process";
 
 const config = getConfig();
 const db = new Database(config.databaseUrl);
 await db.migrate();
-const app = await buildApp(config, db);
-const runner = new JobRunner(db, app.store);
+const app = await buildApp(config, db, media);
+const runner = new JobRunner(db, app.store, { executeMedia: media });
 await app.listen({ port: config.apiPort, host: "127.0.0.1" });
 runner.start();
 await expireSources(db, app.store);

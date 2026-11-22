@@ -8,16 +8,19 @@ import { COOKIE, tokenHash } from "./auth";
 import type { Config } from "./config";
 import type { App } from "./context";
 import { httpError } from "./context";
+import type { MediaExecutor } from "./media";
 import { authRoutes } from "./routes/auth";
 import { candidateRoutes } from "./routes/candidates";
 import { sourceRoutes } from "./routes/sources";
 import { LocalObjectStore } from "./storage";
 
-export async function buildApp(config: Config, db: Database): Promise<App> {
+export async function buildApp(config: Config, db: Database, executeMedia: MediaExecutor): Promise<App> {
+  if (typeof executeMedia !== "function") throw new TypeError("A media executor is required");
   const app = Fastify({ logger: false, bodyLimit: 65536, requestTimeout: 600000 }) as unknown as App;
   app.decorate("db", db);
   app.decorate("store", new LocalObjectStore(config.dataDir));
   app.decorate("config", config);
+  app.decorate("executeMedia", executeMedia);
   app.decorateRequest("identity");
   await app.register(cookie);
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });

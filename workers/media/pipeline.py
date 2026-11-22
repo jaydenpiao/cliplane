@@ -1,5 +1,6 @@
 """Stateless media worker. JSON stdin/stdout; local video files only; no network or AI calls."""
 
+import errno
 import json
 import math
 import os
@@ -16,10 +17,18 @@ from pathlib import Path
 
 FORMATS = "mov,matroska,webm,avi,mpeg,mpegts,ogg"
 TIMEOUT = int(os.environ.get("MEDIA_TIMEOUT_SECONDS", "1800"))
+# EX_DATAERR is reserved for a rejected probe; CPython can exit 2 before the worker starts.
+PROBE_INPUT_REJECTED = 65
+# FFprobe reports AVERROR_INVALIDDATA for bad input and EINVAL for a disallowed demuxer.
+FFPROBE_INPUT_ERRORS = {-1094995529, -errno.EINVAL}
+
+
+class UnsupportedMediaError(ValueError):
+    pass
 
 
 def run(
-    args: list[str], timeout: int = TIMEOUT, output_limit: int = 8 * 1024 * 1024
+    args: list[str], timeout: int = TIMEOUT, output_limit: int = 8 * 1024 * 1024, *, check: bool = True
 ) -> subprocess.CompletedProcess:
     # Spool diagnostics to bounded temporary files, never unbounded in-memory pipes.
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
@@ -38,7 +47,7 @@ def run(
                     continue
             if stdout.tell() > output_limit or stderr.tell() > output_limit:
                 raise ValueError("Media diagnostics exceeded their size limit")
-            if process.returncode:
+            if check and process.returncode:
                 raise ValueError("Media could not be processed; check the video encoding")
             stdout.seek(0)
             stderr.seek(0)
@@ -75,6 +84,7 @@ def probe(source: str | Path) -> dict:
             "file,pipe",
             "-format_whitelist",
             FORMATS,
+            "-show_error",
             "-show_entries",
             "stream=index,codec_type,codec_name,width,height,duration,avg_frame_rate:stream_disposition=attached_pic:stream_side_data=rotation:format=duration",
             "-of",
@@ -82,17 +92,30 @@ def probe(source: str | Path) -> dict:
             str(path),
         ],
         timeout=45,
+        check=False,
     )
+    if result.returncode:
+        if result.returncode == 1:
+            error = json.loads(result.stdout)["error"]
+            code = error["code"]
+            if type(code) is int and code in FFPROBE_INPUT_ERRORS and isinstance(error["string"], str):
+                raise UnsupportedMediaError("A supported media container is required")
+        # Signals, other exit statuses and unknown FFprobe errors are worker failures.
+        raise ValueError("Media could not be probed")
     data = json.loads(result.stdout)
+    streams, media_format = data["streams"], data.get("format", {})
+    if not isinstance(streams, list) or not isinstance(media_format, dict):
+        raise TypeError("Invalid FFprobe response")
     videos = [
         s
-        for s in data.get("streams", [])
+        for s in streams
         if s.get("codec_type") == "video" and not s.get("disposition", {}).get("attached_pic")
     ]
     if not videos:
-        raise ValueError("A playable video stream is required")
+        raise UnsupportedMediaError("A playable video stream is required")
     video = videos[0]
-    duration = float(data.get("format", {}).get("duration", video.get("duration", 0)))
+    # FFprobe's JSON writer omits unavailable timestamps. Allow a stream-level duration.
+    duration = float(media_format.get("duration", video.get("duration", 0)))
     width, height = int(video.get("width", 0)), int(video.get("height", 0))
     if (
         not math.isfinite(duration)
@@ -100,13 +123,13 @@ def probe(source: str | Path) -> dict:
         or not 16 <= width <= 8192
         or not 16 <= height <= 8192
     ):
-        raise ValueError("Video dimensions or duration exceed supported limits")
+        raise UnsupportedMediaError("Video dimensions or duration exceed supported limits")
     for side in video.get("side_data_list", []):
         if abs(int(side.get("rotation", 0))) % 180 == 90:
             width, height = height, width
     num, den = video.get("avg_frame_rate", "0/1").split("/")
     fps = float(num) / max(1, float(den))
-    audio = [s for s in data.get("streams", []) if s.get("codec_type") == "audio"]
+    audio = [s for s in streams if s.get("codec_type") == "audio"]
     return {
         "durationMs": round(duration * 1000),
         "width": width,
@@ -423,7 +446,11 @@ def main() -> None:
     request = json.loads(sys.stdin.read(1024 * 1024))
     operation = request.get("operation")
     if operation == "probe":
-        result = probe(request["source"])
+        try:
+            result = probe(request["source"])
+        except UnsupportedMediaError as error:
+            print(json.dumps({"error": str(error)}))
+            sys.exit(PROBE_INPUT_REJECTED)
     elif operation == "analyze":
         result = analyze(request["source"], Path(request["outputDir"]))
     elif operation == "render":
