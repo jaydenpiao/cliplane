@@ -70,7 +70,17 @@ These checks require the local test runner to observe that container's host
 process identities. The smoke and bundle limits are fixture settings. Production
 workloads need their own sizing and verification.
 
-The preflight and smoke report `decoderIsolationQualified: false`. The local
-rootless driver-none daemon fails controller preflight. The API still uses native
-decoding. The upload and job paths need a fail-closed adapter that preserves
-ownership, approval revisions, deadlines and cleanup.
+## Application execution
+
+The API startup selects one media executor and passes it to upload probing and
+queued jobs. Both call the selected executor. A rejected upload probe leaves no
+source, attestation, or job and removes the staged file. Confirmed probe input
+rejection returns HTTP 400. An unavailable executor or invalid probe response
+returns HTTP 503 without exposing worker details.
+
+Startup currently selects the native worker. Its probe uses an explicit input
+rejection status to distinguish unsupported input from an execution failure.
+The isolated runner still needs an application adapter for probe, analyze and
+render, along with production sizing, deadline and cancellation validation.
+The smoke continues to report `decoderIsolationQualified: false`. The local
+rootless driver-none daemon fails controller preflight.

@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Config } from "../apps/api/src/config";
 import { expireSources, JobRunner } from "../apps/api/src/jobs";
+import { type MediaExecutor, type MediaRequest, media } from "../apps/api/src/media";
 import { buildApp } from "../apps/api/src/server";
 import { Database } from "../packages/db/src/index";
 
@@ -101,8 +102,8 @@ beforeAll(async () => {
     maxUploadBytes: 2_000_000,
     retentionDays: 7,
   };
-  app = await buildApp(config, db);
-  runner = new JobRunner(db, app.store);
+  app = await buildApp(config, db, media);
+  runner = new JobRunner(db, app.store, { executeMedia: media });
   for (const [suffix, setCookie] of [
     [
       "a",
@@ -208,19 +209,81 @@ describe("authenticated authorized clipping", () => {
     expect(res.statusCode).toBe(400);
     expect((await db.query("SELECT count(*)::int AS n FROM source_assets"))[0].n).toBe(0);
   });
-  it("validates actual media rather than extension", async () => {
+  it("rejects unsupported media with the upload validation message", async () => {
     const body = multipart(metadata, Buffer.from("fake media"));
-    expect(
-      (
-        await app.inject({
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/sources",
+      ...body,
+      headers: { ...body.headers, cookie: cookieA },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "This file is not a supported playable video recording" });
+  });
+  it.each(["rejects valid media", "returns malformed metadata"] as const)(
+    "fails closed when the upload probe executor %s",
+    async (outcome) => {
+      const dataDir = await mkdtemp(path.join(root, "failed-probe-store-"));
+      const probes: { source: string; bytes: Buffer; permissions: number }[] = [];
+      const executeMedia: MediaExecutor = async <T>(request: MediaRequest): Promise<T> => {
+        if (request.operation !== "probe") throw new Error("Expected an upload probe");
+        probes.push({
+          source: request.source,
+          bytes: await readFile(request.source),
+          permissions: (await stat(request.source)).mode & 0o777,
+        });
+        if (outcome === "rejects valid media") throw new Error("private decoder diagnostic");
+        return {
+          durationMs: 3000,
+          width: -1,
+          height: 180,
+          hasAudio: false,
+          fps: 24,
+          codec: "private malformed worker payload",
+          audioTracks: [],
+        } as T;
+      };
+      const failingApp = await buildApp({ ...app.config, dataDir }, db, executeMedia);
+      try {
+        const { workspaceId } = (
+          await failingApp.inject({ url: "/api/me", headers: { cookie: cookieB } })
+        ).json<{ workspaceId: string }>();
+        const body = multipart(metadata, video);
+        const response = await failingApp.inject({
           method: "POST",
           url: "/api/sources",
           ...body,
-          headers: { ...body.headers, cookie: cookieA },
-        })
-      ).statusCode,
-    ).toBe(400);
-  });
+          headers: { ...body.headers, cookie: cookieB },
+        });
+        expect(response.statusCode).toBe(503);
+        expect(response.json()).toEqual({ error: "The request could not be completed. Please retry." });
+
+        expect(probes).toHaveLength(1);
+        const [probe] = probes;
+        expect(path.relative(dataDir, probe.source).split(path.sep)).toEqual([
+          workspaceId,
+          expect.stringMatching(/^[a-f0-9-]{36}$/),
+          "original",
+          "master.bin",
+        ]);
+        expect(probe.bytes).toEqual(video);
+        expect(probe.permissions).toBe(0o600);
+        await expect(stat(probe.source)).rejects.toMatchObject({ code: "ENOENT" });
+        expect(
+          await db.query(
+            `SELECT
+              (SELECT count(*)::int FROM source_assets WHERE workspace_id=$1) AS sources,
+              (SELECT count(*)::int FROM rights_attestations WHERE workspace_id=$1) AS attestations,
+              (SELECT count(*)::int FROM processing_jobs WHERE workspace_id=$1) AS jobs,
+              (SELECT count(*)::int FROM audit_events WHERE workspace_id=$1 AND kind='source.uploaded') AS uploads`,
+            [workspaceId],
+          ),
+        ).toEqual([{ sources: 0, attestations: 0, jobs: 0, uploads: 0 }]);
+      } finally {
+        await failingApp.close();
+      }
+    },
+  );
   it("uploads with file before metadata, persists provenance, and processes once", async () => {
     const body = multipart(metadata, video, true);
     const res = await app.inject({

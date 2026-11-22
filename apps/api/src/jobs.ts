@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import type { Database } from "../../../packages/db/src/index";
+import type { MediaMetadata } from "../../../packages/domain/src/index";
 import { defaultEditPlan } from "../../../packages/domain/src/index";
 import { watchJobLease } from "./job-lease";
-import { checksum, media } from "./media";
+import type { MediaAnalysisResult, MediaExecutor } from "./media";
+import { checksum } from "./media";
 import type { LocalObjectStore } from "./storage";
 
 async function lockOwnedJob(client: PoolClient, id: string, owner: string): Promise<boolean> {
@@ -37,10 +39,12 @@ export class JobRunner {
     private db: Database,
     private store: LocalObjectStore,
     private options: {
-      executeMedia?: typeof media;
+      executeMedia: MediaExecutor;
       lease?: { intervalMs?: number; budgetMs?: number };
-    } = {},
-  ) {}
+    },
+  ) {
+    if (typeof options?.executeMedia !== "function") throw new TypeError("A media executor is required");
+  }
   start(): void {
     const tick = async () => {
       if (this.stopping) return;
@@ -175,7 +179,7 @@ export class JobRunner {
     let valid = false;
     try {
       signal.throwIfAborted();
-      const result = await (this.options.executeMedia || media)(
+      const result = await this.options.executeMedia<MediaAnalysisResult>(
         {
           operation: "analyze",
           source: this.store.resolve(source.storage_key),
@@ -281,7 +285,7 @@ export class JobRunner {
     let valid = false;
     try {
       signal.throwIfAborted();
-      const metadata = await (this.options.executeMedia || media)(
+      const metadata = await this.options.executeMedia<MediaMetadata>(
         {
           operation: "render",
           source: this.store.resolve(source.storage_key),

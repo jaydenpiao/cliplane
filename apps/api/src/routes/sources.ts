@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { z } from "zod";
+import type { MediaMetadata } from "../../../../packages/domain/src/index";
 import { rightsSchema, uploadMetadataSchema } from "../../../../packages/domain/src/index";
 import type { App } from "../context";
 import { httpError, sendObject, sourceFor } from "../context";
 import { audit } from "../jobs";
-import { checksum, media } from "../media";
+import { checksum, mediaMetadataSchema, UnsupportedMediaError } from "../media";
 
 export function sourceRoutes(app: App): void {
   app.get("/api/sources", async (req) =>
@@ -52,11 +53,15 @@ export function sourceRoutes(app: App): void {
       }
       if (!fileFound || bytes === 0) throw httpError(400, "A video recording is required");
       const metadata = uploadMetadataSchema.parse(rawMetadata);
-      let info: import("../../../../packages/domain/src/index").MediaMetadata;
+      let info: MediaMetadata;
       try {
-        info = await media({ operation: "probe", source: app.store.resolve(key) });
-      } catch {
-        throw httpError(400, "This file is not a supported playable video recording");
+        info = mediaMetadataSchema.parse(
+          await app.executeMedia<unknown>({ operation: "probe", source: app.store.resolve(key) }),
+        );
+      } catch (error) {
+        if (error instanceof UnsupportedMediaError)
+          throw httpError(400, "This file is not a supported playable video recording");
+        throw httpError(503, "Media processing is unavailable");
       }
       const digest = await checksum(app.store.resolve(key));
       const rights = {

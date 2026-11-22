@@ -180,6 +180,32 @@ class MediaTests(unittest.TestCase):
         result = pipeline.analyze(source, self.root / "silent-analysis")
         self.assertEqual(result["candidates"][0]["endMs"], 1000)
 
+    def test_cli_reserves_data_error_exit_for_confirmed_probe_rejection(self):
+        invalid = self.root / "invalid-container.mp4"
+        invalid.write_text("not a video")
+        command = [sys.executable, str(Path(pipeline.__file__))]
+
+        valid_request = json.dumps({"operation": "probe", "source": str(self.source)})
+        valid = subprocess.run(command, input=valid_request, text=True, capture_output=True, check=False)
+        self.assertEqual(valid.returncode, 0)
+        invalid_result = subprocess.run(
+            command,
+            input=json.dumps({"operation": "probe", "source": str(invalid)}),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(invalid_result.returncode, 65)
+        unavailable = subprocess.run(
+            command,
+            input=valid_request,
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": str(self.root)},
+        )
+        self.assertEqual(unavailable.returncode, 1)
+
     def test_cli_rejects_external_media(self):
         completed = subprocess.run(
             [sys.executable, str(Path(pipeline.__file__))],

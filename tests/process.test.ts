@@ -26,6 +26,18 @@ it("kills the media process group, including an active encoder, on timeout", asy
   }
 });
 
+it("reports CPython's missing-script exit without classifying it as invalid media", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cliplane-missing-worker-"));
+  try {
+    await expect(runJsonProcess("python3", [path.join(root, "missing.py")], {})).rejects.toMatchObject({
+      name: "WorkerProcessExitError",
+      exitCode: 2,
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("rejects oversized worker output without parsing it", async () => {
   await expect(runJsonProcess("python3", ["-c", "print('x'*50000)"], {}, 3000, 4096)).rejects.toThrow(
     "output limit",
