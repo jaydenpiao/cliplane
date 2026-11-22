@@ -70,6 +70,27 @@ These checks require the local test runner to observe that container's host
 process identities. The smoke and bundle limits are fixture settings. Production
 workloads need their own sizing and verification.
 
+## Private probe transport
+
+The hosted smoke sends one probe request over a connected Unix socket using
+the original synthetic recording. The sender writes a four-byte unsigned
+big-endian length followed by that many source bytes and half-closes its write
+side. Intake has a fixed deadline and a 64 MiB byte limit. The runner stages
+one file under a private directory and exposes it to the decoder as a read-only
+bind. The request carries no host path or operation selector.
+
+The runner checks the decoder's exit and validates the artifact-free probe
+bundle. After cleanup it sends a four-byte response length and up to 1 MiB of
+JSON. A successful response contains `status: "ok"` and `metadata`. The other
+statuses are `invalid_request`, `unsupported` and `unavailable`. Responses carry
+no private diagnostics. Only the decoder's explicit probe input rejection
+produces `unsupported`.
+
+This exchange runs inside the hosted smoke. The API listener and client,
+analysis and render transport, and cancellation after accepted intake remain
+to be integrated. Accepted probe work uses the existing container deadline and
+owned-container cleanup. The 64 MiB transport limit applies to this probe profile.
+
 ## Application execution
 
 The API startup selects one media executor and passes it to upload probing and

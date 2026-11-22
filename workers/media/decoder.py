@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from artifact_protocol import BundleError, decode_object, write_bundle
-from pipeline import analyze, probe, render
+from pipeline import PROBE_INPUT_REJECTED, UnsupportedMediaError, analyze, probe, render
 
 SOURCE = Path("/input/source")
 WORK = Path("/work")
@@ -32,27 +32,31 @@ def read_request(stream: BinaryIO) -> dict:
     return request
 
 
-def run_job(request_stream: BinaryIO, bundle_stream: BinaryIO) -> None:
+def run_job(request_stream: BinaryIO, bundle_stream: BinaryIO) -> int:
     request = read_request(request_stream)
     operation = request["operation"]
     with tempfile.TemporaryDirectory(prefix="decoder-", dir=WORK) as job:
         output_dir = Path(job)
         if operation == "probe":
-            result = probe(SOURCE)
+            try:
+                result = probe(SOURCE)
+            except UnsupportedMediaError:
+                return PROBE_INPUT_REJECTED
         elif operation == "analyze":
             result = analyze(SOURCE, output_dir)
         else:
             result = render(SOURCE, output_dir / "render.mp4", request["plan"])
         write_bundle(bundle_stream, operation, result, output_dir)
+    return 0
 
 
 def main() -> int:
     try:
         if len(sys.argv) != 1:
             raise BundleError("Unexpected decoder arguments")
-        run_job(sys.stdin.buffer, sys.stdout.buffer)
+        status = run_job(sys.stdin.buffer, sys.stdout.buffer)
         sys.stdout.buffer.flush()
-        return 0
+        return status
     except Exception:  # noqa: BLE001
         # This is the process boundary. Even unexpected failures must omit private details.
         print("decoder_failed", file=sys.stderr)

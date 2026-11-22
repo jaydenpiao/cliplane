@@ -2,17 +2,20 @@
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
 import time
 import uuid
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,11 +23,13 @@ from typing import BinaryIO, cast
 
 from boundary_probe import BOUNDARY_CHECKS, UNMOUNTED_SOURCE_NAME
 from cancellation_probe import CANCELLATION_CHILD_PREFIX, CANCELLATION_READY
+from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported, serve_probe
 from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
-from artifact_protocol import read_bundle
+from artifact_protocol import MAX_MANIFEST_BYTES, decode_object, read_bundle
+from pipeline import PROBE_INPUT_REJECTED
 
 FIXTURE = ROOT / "packages/test-fixtures/nightdrift-original.mp4"
 IMAGE_ID = re.compile(r"sha256:[a-f0-9]{64}")
@@ -40,6 +45,12 @@ EXITED_PROCESS_STATES = (b"Z", b"X", b"x")
 
 class SmokeError(ValueError):
     """A stable smoke-check failure that can be shown in CI."""
+
+
+class DecoderExit(SmokeError):
+    def __init__(self, status: int) -> None:
+        super().__init__("decoder exited unsuccessfully")
+        self.status = status
 
 
 def require(condition: bool, failure: str) -> None:
@@ -216,7 +227,9 @@ def container_stream(
                     raise SmokeError("decoder output stream missing")
                 yield cast(BinaryIO, process.stdout)
                 if cancellation_token is None:
-                    require(process.wait(timeout=5) == 0, "decoder exited unsuccessfully")
+                    status = process.wait(timeout=5)
+                    if status != 0:
+                        raise DecoderExit(status)
                 else:
                     descendant = find_host_descendant(container_id, cancellation_token)
                     require(process.poll() is None, "cancellation container exited before stop")
@@ -244,6 +257,40 @@ def container_stream(
 def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
     with container_stream(image, source, json.dumps(request).encode("utf-8")) as stream:
         return read_bundle(stream, destination, request["operation"])
+
+
+def execute_container_probe(image: str, source: Path) -> dict:
+    output = None
+    try:
+        with container_stream(image, source, b'{"version":1,"operation":"probe"}') as stream:
+            output = stream.read(4 + MAX_MANIFEST_BYTES + 1)
+    except DecoderExit as error:
+        if error.status == PROBE_INPUT_REJECTED and output == b"":
+            raise ProbeUnsupported() from None
+        raise
+    return read_bundle(io.BytesIO(output), source.parent / "bundle", "probe")
+
+
+def probe_over_socket(image: str, staging_root: Path, content: bytes) -> dict:
+    sender, receiver = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+    with ThreadPoolExecutor(max_workers=1) as executor, sender, receiver:
+        worker = executor.submit(
+            serve_probe, receiver, staging_root, lambda source: execute_container_probe(image, source)
+        )
+        # Allow for the bounded intake, Docker commands, attached process and cleanup.
+        sender.settimeout(130)
+        sender.sendall(len(content).to_bytes(4, "big"))
+        sender.sendall(content)
+        sender.shutdown(socket.SHUT_WR)
+        with sender.makefile("rb") as stream:
+            header = stream.read(4)
+            size = int.from_bytes(header, "big")
+            require(len(header) == 4 and 1 <= size <= MAX_RESPONSE_BYTES, "invalid probe response length")
+            payload = stream.read(size)
+            require(len(payload) == size and stream.read(1) == b"", "invalid probe response framing")
+        worker.result()
+    require(not any(staging_root.iterdir()), "probe staging remains after the response")
+    return decode_object(payload)
 
 
 def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
@@ -377,7 +424,21 @@ def run_smoke(image: str) -> None:
         check_boundaries(image, source, initial_hash)
         check_resources(image, source)
         check_cancellation(image, source)
-        metadata = decode(image, source, {"version": 1, "operation": "probe"}, root / "probe")
+        staging_root = root / "probe-staging"
+        staging_root.mkdir(mode=0o700)
+        reply = probe_over_socket(image, staging_root, source.read_bytes())
+        require(
+            reply.keys() == {"status", "metadata"}
+            and reply["status"] == "ok"
+            and isinstance(reply["metadata"], dict),
+            "valid fixture probe did not return metadata",
+        )
+        metadata = reply["metadata"]
+        require(
+            probe_over_socket(image, staging_root, b"not a supported media container")
+            == {"status": "unsupported"},
+            "invalid media did not return an unsupported probe response",
+        )
         require(
             (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
             == (1280, 720, 24000, "h264")
@@ -441,6 +502,7 @@ def run_smoke(image: str) -> None:
                 "boundaryChecks": BOUNDARY_CHECKS,
                 "resourceChecks": list(RESOURCE_CHECKS),
                 "cancellationVerified": True,
+                "probeTransportVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
