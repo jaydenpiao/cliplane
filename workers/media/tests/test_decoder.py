@@ -1,4 +1,5 @@
 import io
+import json
 import subprocess
 import sys
 import tempfile
@@ -53,7 +54,8 @@ class DecoderTests(unittest.TestCase):
             scratch.mkdir()
             output = io.BytesIO()
             with patch.object(decoder, "SOURCE", fixture), patch.object(decoder, "WORK", scratch):
-                decoder.run_job(io.BytesIO(b'{"version":1,"operation":"probe"}'), output)
+                status = decoder.run_job(io.BytesIO(b'{"version":1,"operation":"probe"}'), output)
+            self.assertEqual(status, 0)
             self.assertEqual(list(scratch.iterdir()), [])
             output.seek(0)
             result = read_bundle(output, root / "received", "probe")
@@ -71,3 +73,43 @@ class DecoderTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, b"")
         self.assertEqual(result.stderr, b"decoder_failed\n")
+
+    def test_cli_reserves_input_rejection_for_probe_of_unsupported_media(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            invalid = root / "source"
+            invalid.write_bytes(b"not a supported media container")
+            scratch = root / "work"
+            scratch.mkdir()
+            for operation, source, status, stderr in (
+                ("probe", invalid, 65, b""),
+                ("analyze", invalid, 1, b"decoder_failed\n"),
+                ("probe", root / "missing", 1, b"decoder_failed\n"),
+            ):
+                with self.subTest(operation=operation, source=source.name):
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            "-B",
+                            "-c",
+                            (
+                                "import sys\n"
+                                "from pathlib import Path\n"
+                                "import decoder\n"
+                                "decoder.SOURCE = Path(sys.argv.pop(1))\n"
+                                "decoder.WORK = Path(sys.argv.pop(1))\n"
+                                "sys.exit(decoder.main())\n"
+                            ),
+                            str(source),
+                            str(scratch),
+                        ],
+                        cwd=MEDIA,
+                        input=json.dumps({"version": 1, "operation": operation}).encode("utf-8"),
+                        capture_output=True,
+                        check=False,
+                        timeout=5,
+                    )
+                    self.assertEqual(result.returncode, status)
+                    self.assertEqual(result.stdout, b"")
+                    self.assertEqual(result.stderr, stderr)
+                    self.assertEqual(list(scratch.iterdir()), [])

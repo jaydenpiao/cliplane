@@ -36,8 +36,9 @@ target TLS verification remains open in [#28](https://github.com/jaydenpiao/clip
 - Finish [decoder isolation #2](https://github.com/jaydenpiao/cliplane/issues/2). The
   hosted smoke covers filesystem and network isolation, resource ceilings and
   container cancellation. Upload probing and jobs now share an explicitly selected
-  executor. Connect the isolated runner and validate the production runtime and
-  workload profile before qualification.
+  executor. The hosted smoke sends a probe over a private Unix socket to the
+  isolated decoder. Connect the application client and file-bearing operations,
+  then validate the production runtime and workload profile before qualification.
 - Add [durable resumable ingest #3](https://github.com/jaydenpiao/cliplane/issues/3) and
   separate job execution for managed hosting. Complete [account lifecycle #8](https://github.com/jaydenpiao/cliplane/issues/8)
   and [restore and rollback drills #19](https://github.com/jaydenpiao/cliplane/issues/19).
