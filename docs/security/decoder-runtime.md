@@ -72,8 +72,14 @@ workloads need their own sizing and verification.
 
 ## Private probe transport
 
-The hosted smoke sends one probe request over a connected Unix socket using
-the original synthetic recording. The sender writes a four-byte unsigned
+The hosted smoke connects the TypeScript probe client to a Python Unix listener
+using the original synthetic recording. The listener binds a new socket in a
+runner-owned directory that permits no group writes or other-user access. It
+checks the connecting UID using Linux peer credentials before reading media.
+The listener accepts one connection per call. A narrowly scoped group can
+permit the client to reach the socket without access to the decoder runtime.
+
+The sender writes a four-byte unsigned
 big-endian length followed by that many source bytes and half-closes its write
 side. Intake has a fixed deadline and a 64 MiB byte limit. The runner stages
 one file under a private directory and exposes it to the decoder as a read-only
@@ -86,10 +92,11 @@ statuses are `invalid_request`, `unsupported` and `unavailable`. Responses carry
 no private diagnostics. Only the decoder's explicit probe input rejection
 produces `unsupported`.
 
-This exchange runs inside the hosted smoke. The API listener and client,
-analysis and render transport, and cancellation after accepted intake remain
-to be integrated. Accepted probe work uses the existing container deadline and
-owned-container cleanup. The 64 MiB transport limit applies to this probe profile.
+The client closes its connection on error, cancellation or deadline. Accepted
+probe work uses the existing container deadline and owned-container cleanup.
+The 64 MiB transport limit applies to this probe profile. The exchange is
+exercised in smoke. Runner service operation, app selection, analysis and render
+transport, and cancellation after accepted intake remain to be integrated.
 
 ## Application execution
 
