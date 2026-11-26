@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import tempfile
@@ -23,7 +22,8 @@ from typing import BinaryIO, cast
 
 from boundary_probe import BOUNDARY_CHECKS, UNMOUNTED_SOURCE_NAME
 from cancellation_probe import CANCELLATION_CHILD_PREFIX, CANCELLATION_READY
-from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported, serve_probe
+from probe_listener import probe_listener, serve_probe_once
+from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported
 from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -271,26 +271,45 @@ def execute_container_probe(image: str, source: Path) -> dict:
     return read_bundle(io.BytesIO(output), source.parent / "bundle", "probe")
 
 
-def probe_over_socket(image: str, staging_root: Path, content: bytes) -> dict:
-    sender, receiver = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
-    with ThreadPoolExecutor(max_workers=1) as executor, sender, receiver:
-        worker = executor.submit(
-            serve_probe, receiver, staging_root, lambda source: execute_container_probe(image, source)
-        )
-        # Allow for the bounded intake, Docker commands, attached process and cleanup.
-        sender.settimeout(130)
-        sender.sendall(len(content).to_bytes(4, "big"))
-        sender.sendall(content)
-        sender.shutdown(socket.SHUT_WR)
-        with sender.makefile("rb") as stream:
-            header = stream.read(4)
-            size = int.from_bytes(header, "big")
-            require(len(header) == 4 and 1 <= size <= MAX_RESPONSE_BYTES, "invalid probe response length")
-            payload = stream.read(size)
-            require(len(payload) == size and stream.read(1) == b"", "invalid probe response framing")
-        worker.result()
+def probe_over_listener(image: str, staging_root: Path, source: Path, allowed_uid: int) -> dict:
+    expected_hash = hash_file(source)
+    calls = 0
+
+    def execute(staged: Path) -> dict:
+        nonlocal calls
+        calls += 1
+        require(hash_file(staged) == expected_hash, "probe staging changed the source bytes")
+        return execute_container_probe(image, staged)
+
+    with tempfile.TemporaryDirectory(prefix="probe-socket-", dir=staging_root.parent) as directory:
+        endpoint = Path(directory) / "probe.sock"
+        with probe_listener(endpoint) as listener, ThreadPoolExecutor(max_workers=1) as executor:
+            worker = executor.submit(
+                serve_probe_once, listener, allowed_uid, staging_root, execute, accept_timeout=10.0
+            )
+            result = subprocess.run(
+                [
+                    "node",
+                    "--import",
+                    "tsx",
+                    "scripts/decoder/probe-client-smoke.ts",
+                    str(endpoint),
+                    str(source),
+                ],
+                cwd=ROOT,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=130,
+                check=True,
+            )
+            authorized = allowed_uid == os.geteuid()
+            require(worker.result(timeout=120) == authorized, "probe listener peer decision differs")
+            require(calls == int(authorized), "probe listener started the wrong number of decoders")
+        require(not endpoint.exists(), "probe socket remains after the listener closed")
     require(not any(staging_root.iterdir()), "probe staging remains after the response")
-    return decode_object(payload)
+    require(0 < len(result.stdout) <= MAX_RESPONSE_BYTES, "invalid probe client response length")
+    return decode_object(result.stdout)
 
 
 def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
@@ -426,7 +445,8 @@ def run_smoke(image: str) -> None:
         check_cancellation(image, source)
         staging_root = root / "probe-staging"
         staging_root.mkdir(mode=0o700)
-        reply = probe_over_socket(image, staging_root, source.read_bytes())
+        uid = os.geteuid()
+        reply = probe_over_listener(image, staging_root, source, uid)
         require(
             reply.keys() == {"status", "metadata"}
             and reply["status"] == "ok"
@@ -434,10 +454,15 @@ def run_smoke(image: str) -> None:
             "valid fixture probe did not return metadata",
         )
         metadata = reply["metadata"]
+        invalid = root / "invalid-media"
+        invalid.write_bytes(b"not a supported media container")
         require(
-            probe_over_socket(image, staging_root, b"not a supported media container")
-            == {"status": "unsupported"},
+            probe_over_listener(image, staging_root, invalid, uid) == {"status": "unsupported"},
             "invalid media did not return an unsupported probe response",
+        )
+        require(
+            probe_over_listener(image, staging_root, source, uid + 1) == {"status": "unavailable"},
+            "the client did not reject the unauthorized runner exchange",
         )
         require(
             (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
@@ -503,6 +528,7 @@ def run_smoke(image: str) -> None:
                 "resourceChecks": list(RESOURCE_CHECKS),
                 "cancellationVerified": True,
                 "probeTransportVerified": True,
+                "probeListenerClientVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
