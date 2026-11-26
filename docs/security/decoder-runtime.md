@@ -111,9 +111,22 @@ directory. It removes partial imports on failure. The hosted smoke verifies the
 result against the probe and decodes the actual artifacts. Framing alone does
 not validate media contents or authorize publication.
 
-The probe and analysis paths are exercised in smoke. Runner service operation,
-the application analysis client, render transport and cancellation after
-accepted intake remain to be integrated.
+## Private render transport
+
+The connected render handler reads a four-byte unsigned big-endian length
+followed by the existing version 1 decoder render request, limited to 1 MiB.
+The handler accepts only the render envelope and uses the decoder's existing
+request parser and plan handling. The source frame follows the request.
+One intake deadline covers both frames and the write half-close.
+
+Render uses the same private staging, bounded response spool and send deadline
+as analysis. The receiver accepts only a render bundle containing
+`render.mp4`. The hosted smoke confirms the render request arrived intact,
+decodes the received export and checks the original source hash.
+
+The probe, analysis and render paths are exercised in smoke. The application
+artifact receiver, runner service and cancellation after accepted intake
+remain to be integrated.
 
 ## Application execution
 

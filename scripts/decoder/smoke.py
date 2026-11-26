@@ -29,8 +29,8 @@ from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
-from analysis_transport import serve_analysis
 from artifact_protocol import CHUNK_BYTES, MAX_MANIFEST_BYTES, decode_object, read_bundle
+from artifact_transport import serve_analysis, serve_render
 from pipeline import PROBE_INPUT_REJECTED
 
 FIXTURE = ROOT / "packages/test-fixtures/nightdrift-original.mp4"
@@ -261,28 +261,37 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
         return read_bundle(stream, destination, request["operation"])
 
 
-def analyze_over_socket(image: str, staging_root: Path, source: Path, destination: Path) -> dict:
+def decode_over_socket(
+    image: str, staging_root: Path, source: Path, request: dict, destination: Path
+) -> dict:
     expected_hash = hash_file(source)
+    operation = request["operation"]
+    require(operation in ("analyze", "render"), "unsupported artifact transport smoke")
 
-    def execute(staged: Path, output_dir: Path) -> dict:
-        require(hash_file(staged) == expected_hash, "analysis staging changed the source bytes")
-        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
+    def execute(staged: Path, output_dir: Path, received: dict = request) -> dict:
+        require(hash_file(staged) == expected_hash, "artifact transport changed the source bytes")
+        require(received == request, "render transport changed the submitted plan")
+        return decode(image, staged, received, output_dir)
 
     sender, runner = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
     with ThreadPoolExecutor(max_workers=1) as executor, sender, runner:
-        worker = executor.submit(serve_analysis, runner, staging_root, execute)
+        handler = serve_render if operation == "render" else serve_analysis
+        worker = executor.submit(handler, runner, staging_root, execute)
         # The isolated decoder already has a process deadline and verified container cleanup.
         sender.settimeout(130)
+        if operation == "render":
+            encoded = json.dumps(request, allow_nan=False).encode("utf-8")
+            sender.sendall(len(encoded).to_bytes(4, "big") + encoded)
         with source.open("rb") as content:
             sender.sendall(os.fstat(content.fileno()).st_size.to_bytes(4, "big"))
             while chunk := content.read(CHUNK_BYTES):
                 sender.sendall(chunk)
         sender.shutdown(socket.SHUT_WR)
         with sender.makefile("rb") as response:
-            analyzed = read_bundle(response, destination, "analyze")
+            result = read_bundle(response, destination, operation)
         worker.result(timeout=15)
-    require(not any(staging_root.iterdir()), "analysis staging remains after the response")
-    return analyzed
+    require(not any(staging_root.iterdir()), "artifact staging remains after the response")
+    return result
 
 
 def execute_container_probe(image: str, source: Path) -> dict:
@@ -497,7 +506,9 @@ def run_smoke(image: str) -> None:
             "container probe does not match the fixture",
         )
         analyze_dir = root / "analyze"
-        analyzed = analyze_over_socket(image, staging_root, source, analyze_dir)
+        analyzed = decode_over_socket(
+            image, staging_root, source, {"version": 1, "operation": "analyze"}, analyze_dir
+        )
         require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
         candidates = analyzed["candidates"]
         require(
@@ -515,8 +526,9 @@ def run_smoke(image: str) -> None:
             require(host_probe(thumbnail)[:2] == (640, 360), "analysis image has unexpected dimensions")
             check_decode(thumbnail)
         render_dir = root / "render"
-        rendered = decode(
+        rendered = decode_over_socket(
             image,
+            staging_root,
             source,
             {
                 "version": 1,
@@ -556,6 +568,7 @@ def run_smoke(image: str) -> None:
                 "probeTransportVerified": True,
                 "probeListenerClientVerified": True,
                 "analysisTransportVerified": True,
+                "renderTransportVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
