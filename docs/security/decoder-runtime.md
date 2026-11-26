@@ -94,9 +94,26 @@ produces `unsupported`.
 
 The client closes its connection on error, cancellation or deadline. Accepted
 probe work uses the existing container deadline and owned-container cleanup.
-The 64 MiB transport limit applies to this probe profile. The exchange is
-exercised in smoke. Runner service operation, app selection, analysis and render
-transport, and cancellation after accepted intake remain to be integrated.
+The 64 MiB transport limit applies to this probe profile.
+
+## Private analysis transport
+
+The analysis smoke passes the same source frame over a connected Unix socket.
+The receiving handler is fixed to analysis. It has a trusted callback that
+imports the decoder bundle and verifies process completion and container cleanup.
+The runner stages a bounded response in an anonymous file. It removes the named
+source and output staging before sending the response under a fixed deadline.
+
+Success is a version 1 analysis bundle ending at EOF. Failures close the stream
+without a complete bundle. The receiving side uses the same strict bundle
+reader to copy the proxy, poster and candidate thumbnails into a new private
+directory. It removes partial imports on failure. The hosted smoke verifies the
+result against the probe and decodes the actual artifacts. Framing alone does
+not validate media contents or authorize publication.
+
+The probe and analysis paths are exercised in smoke. Runner service operation,
+the application analysis client, render transport and cancellation after
+accepted intake remain to be integrated.
 
 ## Application execution
 

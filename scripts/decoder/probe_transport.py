@@ -8,7 +8,8 @@ import select
 import socket
 import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
@@ -72,6 +73,26 @@ def _stage_source(connection: socket.socket, path: Path, length: int, deadline: 
         os.fchmod(target.fileno(), 0o444)
 
 
+@contextmanager
+def staged_source(
+    connection: socket.socket, staging_root: Path, *, prefix: str, intake_timeout: float
+) -> Iterator[Path]:
+    """Receive one exact source frame and yield its read-only private file."""
+    deadline = time.monotonic() + intake_timeout
+    length = _source_length(connection, deadline)
+    with tempfile.TemporaryDirectory(prefix=prefix, dir=staging_root) as directory:
+        staging = Path(directory)
+        staging.chmod(0o700)
+        source = staging / "source"
+        _stage_source(connection, source, length, deadline)
+        # A full peer close also produces EOF. Require its response side to remain open.
+        peer = select.poll()
+        peer.register(connection, select.POLLHUP)
+        if peer.poll(0):
+            raise _InvalidRequest
+        yield source
+
+
 def _metadata_payload(metadata: object) -> bytearray:
     if not isinstance(metadata, dict) or metadata.keys() != PROBE_FIELDS:
         raise ValueError
@@ -132,18 +153,9 @@ def serve_probe(
     payload: bytes | bytearray
     with connection:
         try:
-            deadline = time.monotonic() + intake_timeout
-            length = _source_length(connection, deadline)
-            with tempfile.TemporaryDirectory(prefix="probe-", dir=staging_root) as directory:
-                staging = Path(directory)
-                staging.chmod(0o700)
-                source = staging / "source"
-                _stage_source(connection, source, length, deadline)
-                # A full peer close also produces EOF. Require its response side to remain open.
-                peer = select.poll()
-                peer.register(connection, select.POLLHUP)
-                if peer.poll(0):
-                    raise _InvalidRequest
+            with staged_source(
+                connection, staging_root, prefix="probe-", intake_timeout=intake_timeout
+            ) as source:
                 payload = _metadata_payload(execute_probe(source))
         except _InvalidRequest:
             payload = b'{"status":"invalid_request"}'
