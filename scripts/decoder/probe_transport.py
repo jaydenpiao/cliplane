@@ -43,14 +43,19 @@ def _receive(connection: socket.socket, size: int, deadline: float) -> bytes:
     return chunk
 
 
-def _source_length(connection: socket.socket, deadline: float) -> int:
-    header = bytearray()
-    while len(header) < 4:
-        chunk = _receive(connection, 4 - len(header), deadline)
+def receive_exact(connection: socket.socket, length: int, deadline: float) -> bytes:
+    """Read an already bounded field within the shared intake deadline."""
+    data = bytearray()
+    while len(data) < length:
+        chunk = _receive(connection, min(length - len(data), CHUNK_BYTES), deadline)
         if not chunk:
             raise _InvalidRequest
-        header.extend(chunk)
-    length = int.from_bytes(header, "big")
+        data.extend(chunk)
+    return bytes(data)
+
+
+def _source_length(connection: socket.socket, deadline: float) -> int:
+    length = int.from_bytes(receive_exact(connection, 4, deadline), "big")
     if not 1 <= length <= MAX_SOURCE_BYTES:
         raise _InvalidRequest
     return length
@@ -75,10 +80,9 @@ def _stage_source(connection: socket.socket, path: Path, length: int, deadline: 
 
 @contextmanager
 def staged_source(
-    connection: socket.socket, staging_root: Path, *, prefix: str, intake_timeout: float
+    connection: socket.socket, staging_root: Path, *, prefix: str, deadline: float
 ) -> Iterator[Path]:
     """Receive one exact source frame and yield its read-only private file."""
-    deadline = time.monotonic() + intake_timeout
     length = _source_length(connection, deadline)
     with tempfile.TemporaryDirectory(prefix=prefix, dir=staging_root) as directory:
         staging = Path(directory)
@@ -153,9 +157,8 @@ def serve_probe(
     payload: bytes | bytearray
     with connection:
         try:
-            with staged_source(
-                connection, staging_root, prefix="probe-", intake_timeout=intake_timeout
-            ) as source:
+            deadline = time.monotonic() + intake_timeout
+            with staged_source(connection, staging_root, prefix="probe-", deadline=deadline) as source:
                 payload = _metadata_payload(execute_probe(source))
         except _InvalidRequest:
             payload = b'{"status":"invalid_request"}'
