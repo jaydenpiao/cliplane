@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -28,7 +29,8 @@ from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
-from artifact_protocol import MAX_MANIFEST_BYTES, decode_object, read_bundle
+from analysis_transport import serve_analysis
+from artifact_protocol import CHUNK_BYTES, MAX_MANIFEST_BYTES, decode_object, read_bundle
 from pipeline import PROBE_INPUT_REJECTED
 
 FIXTURE = ROOT / "packages/test-fixtures/nightdrift-original.mp4"
@@ -259,6 +261,30 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
         return read_bundle(stream, destination, request["operation"])
 
 
+def analyze_over_socket(image: str, staging_root: Path, source: Path, destination: Path) -> dict:
+    expected_hash = hash_file(source)
+
+    def execute(staged: Path, output_dir: Path) -> dict:
+        require(hash_file(staged) == expected_hash, "analysis staging changed the source bytes")
+        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
+
+    sender, runner = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+    with ThreadPoolExecutor(max_workers=1) as executor, sender, runner:
+        worker = executor.submit(serve_analysis, runner, staging_root, execute)
+        # The isolated decoder already has a process deadline and verified container cleanup.
+        sender.settimeout(130)
+        with source.open("rb") as content:
+            sender.sendall(os.fstat(content.fileno()).st_size.to_bytes(4, "big"))
+            while chunk := content.read(CHUNK_BYTES):
+                sender.sendall(chunk)
+        sender.shutdown(socket.SHUT_WR)
+        with sender.makefile("rb") as response:
+            analyzed = read_bundle(response, destination, "analyze")
+        worker.result(timeout=15)
+    require(not any(staging_root.iterdir()), "analysis staging remains after the response")
+    return analyzed
+
+
 def execute_container_probe(image: str, source: Path) -> dict:
     output = None
     try:
@@ -471,7 +497,7 @@ def run_smoke(image: str) -> None:
             "container probe does not match the fixture",
         )
         analyze_dir = root / "analyze"
-        analyzed = decode(image, source, {"version": 1, "operation": "analyze"}, analyze_dir)
+        analyzed = analyze_over_socket(image, staging_root, source, analyze_dir)
         require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
         candidates = analyzed["candidates"]
         require(
@@ -529,6 +555,7 @@ def run_smoke(image: str) -> None:
                 "cancellationVerified": True,
                 "probeTransportVerified": True,
                 "probeListenerClientVerified": True,
+                "analysisTransportVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
