@@ -104,12 +104,13 @@ imports the decoder bundle and verifies process completion and container cleanup
 The runner stages a bounded response in an anonymous file. It removes the named
 source and output staging before sending the response under a fixed deadline.
 
-Success is a version 1 analysis bundle ending at EOF. Failures close the stream
-without a complete bundle. The receiving side uses the same strict bundle
-reader to copy the proxy, poster and candidate thumbnails into a new private
-directory. It removes partial imports on failure. The hosted smoke verifies the
-result against the probe and decodes the actual artifacts. Framing alone does
-not validate media contents or authorize publication.
+Success is a version 1 analysis bundle ending at EOF. The TypeScript analysis
+client validates the result, candidate intervals and thumbnail order, then
+checks each file length and the aggregate limit before importing to a new
+private directory. Its absolute deadline covers source transfer and artifact
+receipt. Failed exchanges remove the owned attempt. Hosted smoke verifies the
+result against the probe and decodes the actual proxy, poster and thumbnails.
+Media decoding and publication decisions are outside the receiver.
 
 ## Private render transport
 
@@ -128,9 +129,9 @@ validated render plan through a UID-checked listener, decodes the received
 export and checks the original source hash. The receiver's structural checks
 leave media decoding and publication decisions to the caller.
 
-The probe, analysis and render paths are exercised in smoke. The application
-analysis receiver, runner service and cancellation after accepted intake
-remain to be integrated.
+The TypeScript probe, analysis and render clients run through UID-checked
+one-shot listeners in smoke. Runner service integration and cancellation
+after accepted intake remain open.
 
 ## Application execution
 
