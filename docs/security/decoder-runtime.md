@@ -129,9 +129,24 @@ validated render plan through a UID-checked listener, decodes the received
 export and checks the original source hash. The receiver's structural checks
 leave media decoding and publication decisions to the caller.
 
-The TypeScript probe, analysis and render clients run through UID-checked
-one-shot listeners in smoke. Runner service integration and cancellation
-after accepted intake remain open.
+## Private runner lifecycle
+
+The private runner loop binds `probe.sock`, `analyze.sock` and `render.sock`
+in a trusted runner-owned directory and uses a separate runner-only staging
+directory. It reports readiness after all three sockets are available.
+Each connection is checked against the configured Linux UID before the
+fixed handler reads any bytes. The loop serves one connection at a time
+across all three endpoints.
+
+A supervisor can request stop through the loop's stop event. Idle waits
+are bounded. The loop stops dispatching new work, lets the active bounded
+handler finish and removes its sockets. Startup failures roll back sockets
+created by that invocation. Hosted smoke exercises all three TypeScript
+clients through the loop with an actual isolated decoder, verifies a rejected
+UID and checks endpoint and staging cleanup.
+
+Deployment configuration, app selection and cancellation of already accepted
+decoder work remain open.
 
 ## Application execution
 

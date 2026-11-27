@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import signal
-import socket
 import stat
 import subprocess
 import sys
@@ -20,19 +19,19 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Event
 from typing import BinaryIO, cast
 
 from boundary_probe import BOUNDARY_CHECKS, UNMOUNTED_SOURCE_NAME
 from cancellation_probe import CANCELLATION_CHILD_PREFIX, CANCELLATION_READY
-from probe_listener import probe_listener, serve_peer_once
-from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported, serve_probe
+from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported
 from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
 from artifact_protocol import MAX_MANIFEST_BYTES, decode_object, read_bundle
-from artifact_transport import serve_analysis, serve_render
 from pipeline import PROBE_INPUT_REJECTED
+from runner_service import serve_runner
 
 FIXTURE = ROOT / "packages/test-fixtures/nightdrift-original.mp4"
 IMAGE_ID = re.compile(r"sha256:[a-f0-9]{64}")
@@ -274,52 +273,54 @@ def execute_container_probe(image: str, source: Path) -> dict:
     return read_bundle(io.BytesIO(output), source.parent / "bundle", "probe")
 
 
-def client_over_listener(
+@contextmanager
+def running_service(
+    socket_root: Path,
     staging_root: Path,
     allowed_uid: int,
-    serve: Callable[[socket.socket], None],
-    script: str,
-    args: list[str],
-) -> dict:
-    with tempfile.TemporaryDirectory(prefix="runner-socket-", dir=staging_root.parent) as directory:
-        endpoint = Path(directory) / "runner.sock"
-        with probe_listener(endpoint) as listener, ThreadPoolExecutor(max_workers=1) as executor:
-            worker = executor.submit(serve_peer_once, listener, allowed_uid, serve, accept_timeout=10.0)
-            result = subprocess.run(
-                ["node", "--import", "tsx", script, str(endpoint), *args],
-                cwd=ROOT,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                timeout=130,
-                check=True,
-            )
-            require(worker.result(timeout=120) == (allowed_uid == os.geteuid()), "unexpected peer decision")
-        require(not endpoint.exists(), "socket remains after the listener closed")
-    require(not any(staging_root.iterdir()), "runner staging remains after the response")
+    probe: Callable[[Path], dict],
+    analyze: Callable[[Path, Path], dict],
+    render: Callable[[Path, Path, dict], dict],
+) -> Iterator[None]:
+    ready, stop = Event(), Event()
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        worker = executor.submit(
+            serve_runner,
+            socket_root,
+            staging_root,
+            allowed_uid,
+            execute_probe=probe,
+            execute_analysis=analyze,
+            execute_render=render,
+            stop=stop,
+            ready=ready,
+        )
+        try:
+            require(ready.wait(10), "runner service did not become ready")
+            yield
+        finally:
+            stop.set()
+            worker.result(timeout=120)
+    require(not any(socket_root.iterdir()), "runner endpoints remain after shutdown")
+    require(not any(staging_root.iterdir()), "runner staging remains after shutdown")
+
+
+def call_runner(endpoint: Path, script: str, args: list[str]) -> dict:
+    result = subprocess.run(
+        ["node", "--import", "tsx", script, str(endpoint), *args],
+        cwd=ROOT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        timeout=130,
+        check=True,
+    )
     require(0 < len(result.stdout) <= MAX_RESPONSE_BYTES, "invalid client receipt length")
     return decode_object(result.stdout)
 
 
-def probe_over_listener(image: str, staging_root: Path, source: Path, allowed_uid: int) -> dict:
-    expected_hash = hash_file(source)
-    calls = 0
-
-    def execute(staged: Path) -> dict:
-        nonlocal calls
-        calls += 1
-        require(hash_file(staged) == expected_hash, "probe staging changed the source bytes")
-        return execute_container_probe(image, staged)
-
-    result = client_over_listener(
-        staging_root,
-        allowed_uid,
-        lambda connection: serve_probe(connection, staging_root, execute),
-        "scripts/decoder/probe-client-smoke.ts",
-        [str(source)],
-    )
-    require(calls == int(allowed_uid == os.geteuid()), "probe listener started the wrong number of decoders")
-    return result
+def probe_over_service(endpoint: Path, source: Path) -> dict:
+    return call_runner(endpoint, "scripts/decoder/probe-client-smoke.ts", [str(source)])
 
 
 def private_receipt(receiving_root: Path, attempt: object, prefix: str, names: list[str]) -> Path:
@@ -340,19 +341,9 @@ def private_receipt(receiving_root: Path, attempt: object, prefix: str, names: l
     return directory
 
 
-def analyze_over_listener(
-    image: str, staging_root: Path, source: Path, receiving_root: Path
-) -> tuple[dict, Path]:
-    expected_hash = hash_file(source)
-
-    def execute(staged: Path, output_dir: Path) -> dict:
-        require(hash_file(staged) == expected_hash, "analysis staging changed the source bytes")
-        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
-
-    reply = client_over_listener(
-        staging_root,
-        os.geteuid(),
-        lambda connection: serve_analysis(connection, staging_root, execute),
+def analyze_over_service(endpoint: Path, source: Path, receiving_root: Path) -> tuple[dict, Path]:
+    reply = call_runner(
+        endpoint,
         "scripts/decoder/analysis-client-smoke.ts",
         [str(source), str(receiving_root)],
     )
@@ -368,21 +359,9 @@ def analyze_over_listener(
     return result, directory
 
 
-def render_over_listener(
-    image: str, staging_root: Path, source: Path, receiving_root: Path, plan: dict
-) -> tuple[dict, Path]:
-    expected_hash = hash_file(source)
-    request = {"version": 1, "operation": "render", "plan": plan}
-
-    def execute(staged: Path, output_dir: Path, received: dict) -> dict:
-        require(hash_file(staged) == expected_hash, "render staging changed the source bytes")
-        require(received == request, "render transport changed the submitted plan")
-        return decode(image, staged, received, output_dir)
-
-    reply = client_over_listener(
-        staging_root,
-        os.geteuid(),
-        lambda connection: serve_render(connection, staging_root, execute),
+def render_over_service(endpoint: Path, source: Path, receiving_root: Path, plan: dict) -> tuple[dict, Path]:
+    reply = call_runner(
+        endpoint,
         "scripts/decoder/render-client-smoke.ts",
         [str(source), str(receiving_root), json.dumps(plan, allow_nan=False)],
     )
@@ -500,6 +479,108 @@ def check_decode(path: Path) -> None:
     )
 
 
+def check_runner_service(image: str, root: Path, source: Path) -> int:
+    socket_root, staging_root = root / "sockets", root / "runner-staging"
+    analysis_receiving_root, render_receiving_root = root / "analyze", root / "render"
+    for directory in (socket_root, staging_root, analysis_receiving_root, render_receiving_root):
+        directory.mkdir(mode=0o700)
+
+    original_hash = hash_file(source)
+    invalid = root / "invalid-media"
+    invalid.write_bytes(b"not a supported media container")
+    calls: list[tuple[str, str]] = []
+    plan = {
+        "version": 1,
+        "startMs": 800,
+        "endMs": 2800,
+        "layout": "crop",
+        "profile": "standard",
+        "crop": {"x": 0, "y": 0, "width": 1, "height": 1},
+        "facecam": {"x": 0, "y": 0, "width": 1, "height": 1},
+        "muteAudio": True,
+        "captions": [{"startMs": 200, "endMs": 1500, "text": "Original test footage"}],
+    }
+
+    def probe(staged: Path) -> dict:
+        calls.append(("probe", hash_file(staged)))
+        return execute_container_probe(image, staged)
+
+    def analyze(staged: Path, output_dir: Path) -> dict:
+        calls.append(("analyze", hash_file(staged)))
+        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
+
+    def render(staged: Path, output_dir: Path, received: dict) -> dict:
+        calls.append(("render", hash_file(staged)))
+        require(received == {"version": 1, "operation": "render", "plan": plan}, "unexpected render plan")
+        return decode(image, staged, received, output_dir)
+
+    uid = os.geteuid()
+    with running_service(socket_root, staging_root, uid, probe, analyze, render):
+        reply = probe_over_service(socket_root / "probe.sock", source)
+        require(
+            reply.keys() == {"status", "metadata"}
+            and reply["status"] == "ok"
+            and isinstance(reply["metadata"], dict),
+            "valid fixture probe did not return metadata",
+        )
+        metadata = reply["metadata"]
+        require(
+            probe_over_service(socket_root / "probe.sock", invalid) == {"status": "unsupported"},
+            "invalid media did not return an unsupported probe response",
+        )
+        analyzed, analyze_dir = analyze_over_service(
+            socket_root / "analyze.sock", source, analysis_receiving_root
+        )
+        rendered, render_path = render_over_service(
+            socket_root / "render.sock", source, render_receiving_root, plan
+        )
+
+    with running_service(socket_root, staging_root, uid ^ 1, probe, analyze, render):
+        require(
+            probe_over_service(socket_root / "probe.sock", source) == {"status": "unavailable"},
+            "the client did not reject the unauthorized runner exchange",
+        )
+    require(
+        calls
+        == [
+            ("probe", original_hash),
+            ("probe", hash_file(invalid)),
+            ("analyze", original_hash),
+            ("render", original_hash),
+        ],
+        "runner did not dispatch exactly the authorized operations and source bytes",
+    )
+    require(
+        (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
+        == (1280, 720, 24000, "h264")
+        and metadata["hasAudio"] is True,
+        "container probe does not match the fixture",
+    )
+    require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
+    candidates = analyzed["candidates"]
+    proxy = analyze_dir / "proxy.mp4"
+    width, height, duration, audio, codec = host_probe(proxy)
+    require(
+        (width, height, audio, codec) == (640, 360, True, "h264") and abs(duration - 24000) <= 125,
+        "analysis proxy has unexpected metadata",
+    )
+    check_decode(proxy)
+    for image_name in ["poster.jpg", *(f"thumb-{index}.jpg" for index in range(len(candidates)))]:
+        thumbnail = analyze_dir / image_name
+        require(host_probe(thumbnail)[:2] == (640, 360), "analysis image has unexpected dimensions")
+        check_decode(thumbnail)
+    require(host_probe(render_path) == (720, 1280, 2000, False, "h264"), "render has unexpected metadata")
+    require(
+        (rendered["width"], rendered["height"], rendered["durationMs"], rendered["codec"])
+        == (720, 1280, 2000, "h264")
+        and rendered["hasAudio"] is False,
+        "container render metadata differs from output",
+    )
+    check_decode(render_path)
+    require(hash_file(source) == original_hash, "service source bytes changed")
+    return len(candidates) + 2
+
+
 def run_smoke(image: str) -> None:
     require(IMAGE_ID.fullmatch(image) is not None, "expected a full immutable Docker image ID")
     subprocess.run(
@@ -525,76 +606,7 @@ def run_smoke(image: str) -> None:
         check_boundaries(image, source, initial_hash)
         check_resources(image, source)
         check_cancellation(image, source)
-        staging_root = root / "probe-staging"
-        staging_root.mkdir(mode=0o700)
-        uid = os.geteuid()
-        reply = probe_over_listener(image, staging_root, source, uid)
-        require(
-            reply.keys() == {"status", "metadata"}
-            and reply["status"] == "ok"
-            and isinstance(reply["metadata"], dict),
-            "valid fixture probe did not return metadata",
-        )
-        metadata = reply["metadata"]
-        invalid = root / "invalid-media"
-        invalid.write_bytes(b"not a supported media container")
-        require(
-            probe_over_listener(image, staging_root, invalid, uid) == {"status": "unsupported"},
-            "invalid media did not return an unsupported probe response",
-        )
-        require(
-            probe_over_listener(image, staging_root, source, uid + 1) == {"status": "unavailable"},
-            "the client did not reject the unauthorized runner exchange",
-        )
-        require(
-            (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
-            == (1280, 720, 24000, "h264")
-            and metadata["hasAudio"] is True,
-            "container probe does not match the fixture",
-        )
-        analysis_receiving_root = root / "analyze"
-        analysis_receiving_root.mkdir(mode=0o700)
-        analyzed, analyze_dir = analyze_over_listener(image, staging_root, source, analysis_receiving_root)
-        require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
-        candidates = analyzed["candidates"]
-        proxy = analyze_dir / "proxy.mp4"
-        width, height, duration, audio, codec = host_probe(proxy)
-        require(
-            (width, height, audio, codec) == (640, 360, True, "h264") and abs(duration - 24000) <= 125,
-            "analysis proxy has unexpected metadata",
-        )
-        check_decode(proxy)
-        for image_name in ["poster.jpg", *(f"thumb-{index}.jpg" for index in range(len(candidates)))]:
-            thumbnail = analyze_dir / image_name
-            require(host_probe(thumbnail)[:2] == (640, 360), "analysis image has unexpected dimensions")
-            check_decode(thumbnail)
-        receiving_root = root / "render"
-        receiving_root.mkdir(mode=0o700)
-        rendered, render_path = render_over_listener(
-            image,
-            staging_root,
-            source,
-            receiving_root,
-            {
-                "version": 1,
-                "startMs": 800,
-                "endMs": 2800,
-                "layout": "crop",
-                "profile": "standard",
-                "crop": {"x": 0, "y": 0, "width": 1, "height": 1},
-                "facecam": {"x": 0, "y": 0, "width": 1, "height": 1},
-                "muteAudio": True,
-                "captions": [{"startMs": 200, "endMs": 1500, "text": "Original test footage"}],
-            },
-        )
-        require(host_probe(render_path) == (720, 1280, 2000, False, "h264"), "render has unexpected metadata")
-        require(
-            (rendered["width"], rendered["height"], rendered["durationMs"], rendered["codec"])
-            == (720, 1280, 2000, "h264")
-            and rendered["hasAudio"] is False,
-            "container render metadata differs from output",
-        )
-        check_decode(render_path)
+        analyze_artifacts = check_runner_service(image, root, source)
         require(hash_file(source) == initial_hash, "mounted synthetic source bytes changed")
     require(hash_file(FIXTURE) == initial_hash, "synthetic fixture bytes changed")
     print(
@@ -612,7 +624,8 @@ def run_smoke(image: str) -> None:
                 "analysisClientVerified": True,
                 "renderTransportVerified": True,
                 "renderClientVerified": True,
-                "analyzeArtifacts": len(candidates) + 2,
+                "runnerServiceVerified": True,
+                "analyzeArtifacts": analyze_artifacts,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
             }
