@@ -30,7 +30,7 @@ from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
-from artifact_protocol import CHUNK_BYTES, MAX_MANIFEST_BYTES, decode_object, read_bundle
+from artifact_protocol import MAX_MANIFEST_BYTES, decode_object, read_bundle
 from artifact_transport import serve_analysis, serve_render
 from pipeline import PROBE_INPUT_REJECTED
 
@@ -262,30 +262,6 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
         return read_bundle(stream, destination, request["operation"])
 
 
-def analyze_over_socket(image: str, staging_root: Path, source: Path, destination: Path) -> dict:
-    expected_hash = hash_file(source)
-
-    def execute(staged: Path, output_dir: Path) -> dict:
-        require(hash_file(staged) == expected_hash, "analysis staging changed the source bytes")
-        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
-
-    sender, runner = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
-    with ThreadPoolExecutor(max_workers=1) as executor, sender, runner:
-        worker = executor.submit(serve_analysis, runner, staging_root, execute)
-        # The isolated decoder already has a process deadline and verified container cleanup.
-        sender.settimeout(130)
-        with source.open("rb") as content:
-            sender.sendall(os.fstat(content.fileno()).st_size.to_bytes(4, "big"))
-            while chunk := content.read(CHUNK_BYTES):
-                sender.sendall(chunk)
-        sender.shutdown(socket.SHUT_WR)
-        with sender.makefile("rb") as response:
-            result = read_bundle(response, destination, "analyze")
-        worker.result(timeout=15)
-    require(not any(staging_root.iterdir()), "analysis staging remains after the response")
-    return result
-
-
 def execute_container_probe(image: str, source: Path) -> dict:
     output = None
     try:
@@ -346,6 +322,52 @@ def probe_over_listener(image: str, staging_root: Path, source: Path, allowed_ui
     return result
 
 
+def private_receipt(receiving_root: Path, attempt: object, prefix: str, names: list[str]) -> Path:
+    if not isinstance(attempt, str) or re.fullmatch(rf"{prefix}-[A-Za-z0-9]+", attempt) is None:
+        raise SmokeError("invalid artifact attempt name")
+    directory = receiving_root / attempt
+    directory_mode = directory.lstat().st_mode
+    require(
+        stat.S_ISDIR(directory_mode)
+        and stat.S_IMODE(directory_mode) == 0o700
+        and list(receiving_root.iterdir()) == [directory]
+        and {path.name for path in directory.iterdir()} == set(names),
+        "client staging differs from the private import contract",
+    )
+    for name in names:
+        mode = (directory / name).lstat().st_mode
+        require(stat.S_ISREG(mode) and stat.S_IMODE(mode) == 0o600, "imported artifact is not private")
+    return directory
+
+
+def analyze_over_listener(
+    image: str, staging_root: Path, source: Path, receiving_root: Path
+) -> tuple[dict, Path]:
+    expected_hash = hash_file(source)
+
+    def execute(staged: Path, output_dir: Path) -> dict:
+        require(hash_file(staged) == expected_hash, "analysis staging changed the source bytes")
+        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
+
+    reply = client_over_listener(
+        staging_root,
+        os.geteuid(),
+        lambda connection: serve_analysis(connection, staging_root, execute),
+        "scripts/decoder/analysis-client-smoke.ts",
+        [str(source), str(receiving_root)],
+    )
+    require(
+        reply.keys() == {"attempt", "result"} and isinstance(reply["result"], dict),
+        "invalid analysis receipt",
+    )
+    result = reply["result"]
+    candidates = result["candidates"]
+    require(isinstance(candidates, list) and 1 <= len(candidates) <= 8, "invalid fixture candidates")
+    names = ["proxy.mp4", "poster.jpg", *(f"thumb-{index}.jpg" for index in range(len(candidates)))]
+    directory = private_receipt(receiving_root, reply["attempt"], "analysis", names)
+    return result, directory
+
+
 def render_over_listener(
     image: str, staging_root: Path, source: Path, receiving_root: Path, plan: dict
 ) -> tuple[dict, Path]:
@@ -364,28 +386,12 @@ def render_over_listener(
         "scripts/decoder/render-client-smoke.ts",
         [str(source), str(receiving_root), json.dumps(plan, allow_nan=False)],
     )
-    attempt = reply.get("attempt")
     require(
-        reply.keys() == {"attempt", "metadata"}
-        and isinstance(reply["metadata"], dict)
-        and isinstance(attempt, str)
-        and re.fullmatch(r"render-[A-Za-z0-9]+", attempt) is not None,
+        reply.keys() == {"attempt", "metadata"} and isinstance(reply["metadata"], dict),
         "invalid render import receipt",
     )
-    receiving_dir = receiving_root / cast(str, attempt)
-    output = receiving_dir / "render.mp4"
-    directory_mode = receiving_dir.lstat().st_mode
-    output_mode = output.lstat().st_mode
-    require(
-        stat.S_ISDIR(directory_mode)
-        and stat.S_ISREG(output_mode)
-        and list(receiving_root.iterdir()) == [receiving_dir]
-        and list(receiving_dir.iterdir()) == [output]
-        and stat.S_IMODE(directory_mode) == 0o700
-        and stat.S_IMODE(output_mode) == 0o600,
-        "render client staging differs from the private import contract",
-    )
-    return reply["metadata"], output
+    directory = private_receipt(receiving_root, reply["attempt"], "render", ["render.mp4"])
+    return reply["metadata"], directory / "render.mp4"
 
 
 def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
@@ -546,13 +552,11 @@ def run_smoke(image: str) -> None:
             and metadata["hasAudio"] is True,
             "container probe does not match the fixture",
         )
-        analyze_dir = root / "analyze"
-        analyzed = analyze_over_socket(image, staging_root, source, analyze_dir)
+        analysis_receiving_root = root / "analyze"
+        analysis_receiving_root.mkdir(mode=0o700)
+        analyzed, analyze_dir = analyze_over_listener(image, staging_root, source, analysis_receiving_root)
         require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
         candidates = analyzed["candidates"]
-        require(
-            isinstance(candidates, list) and 1 <= len(candidates) <= 8, "invalid analysis candidate count"
-        )
         proxy = analyze_dir / "proxy.mp4"
         width, height, duration, audio, codec = host_probe(proxy)
         require(
@@ -605,6 +609,7 @@ def run_smoke(image: str) -> None:
                 "probeTransportVerified": True,
                 "probeListenerClientVerified": True,
                 "analysisTransportVerified": True,
+                "analysisClientVerified": True,
                 "renderTransportVerified": True,
                 "renderClientVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
