@@ -1,15 +1,11 @@
 import { addAbortListener } from "node:events";
-import { constants, type Stats } from "node:fs";
-import { type FileHandle, open } from "node:fs/promises";
-import { createConnection, type Socket } from "node:net";
-import { pipeline } from "node:stream/promises";
+import type { Socket } from "node:net";
 import { z } from "zod";
 import type { MediaMetadata } from "../../../packages/domain/src/index";
 import { mediaMetadataSchema, UnsupportedMediaError } from "./media";
+import { exchangeRunner } from "./runner-exchange";
 
-const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
-const CHUNK_BYTES = 64 * 1024;
 const LENGTH_BYTES = 4;
 const UNSUPPORTED_RESPONSE = Buffer.from('{"status":"unsupported"}');
 
@@ -28,22 +24,6 @@ export class ProbeRunnerError extends Error {
     super("Media probe runner unavailable");
     this.name = "ProbeRunnerError";
   }
-}
-
-async function* sourceFrame(file: FileHandle, stat: Stats) {
-  const header = Buffer.alloc(LENGTH_BYTES);
-  header.writeUInt32BE(stat.size);
-  yield header;
-  let offset = 0;
-  while (offset < stat.size) {
-    const buffer = Buffer.allocUnsafe(Math.min(CHUNK_BYTES, stat.size - offset));
-    const { bytesRead } = await file.read(buffer, 0, buffer.length, offset);
-    if (!bytesRead) throw new ProbeRunnerError();
-    offset += bytesRead;
-    yield buffer.subarray(0, bytesRead);
-  }
-  const current = await file.stat();
-  if (current.size !== stat.size || current.mtimeMs !== stat.mtimeMs) throw new ProbeRunnerError();
 }
 
 async function readResponse(socket: Socket): Promise<Buffer> {
@@ -69,36 +49,6 @@ async function readResponse(socket: Socket): Promise<Buffer> {
   return payload;
 }
 
-async function exchange(
-  socketPath: string,
-  source: string,
-  signal: AbortSignal,
-  deadline: number,
-): Promise<Buffer> {
-  // O_NONBLOCK lets fstat reject a FIFO without waiting for a writer.
-  const file = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-  try {
-    signal.throwIfAborted();
-    const stat = await file.stat();
-    if (!stat.isFile() || stat.size < 1 || stat.size > MAX_SOURCE_BYTES || performance.now() >= deadline)
-      throw new ProbeRunnerError();
-    signal.throwIfAborted();
-    const socket = createConnection({ path: socketPath, allowHalfOpen: true, signal });
-    try {
-      // Finishing the writable pipeline sends EOF while the response side stays open.
-      const [response] = await Promise.all([
-        readResponse(socket),
-        pipeline(sourceFrame(file, stat), socket, { signal }),
-      ]);
-      return response;
-    } finally {
-      socket.destroy();
-    }
-  } finally {
-    await file.close();
-  }
-}
-
 export async function probeWithRunner(
   socketPath: string,
   source: string,
@@ -117,7 +67,10 @@ export async function probeWithRunner(
     const cancelled = new Promise<never>((_, reject) => {
       abortListener = addAbortListener(exchangeSignal, () => reject(new ProbeRunnerError()));
     });
-    const payload = await Promise.race([exchange(socketPath, source, exchangeSignal, deadline), cancelled]);
+    const payload = await Promise.race([
+      exchangeRunner(socketPath, source, exchangeSignal, deadline, readResponse),
+      cancelled,
+    ]);
     response = responseSchema.parse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(payload)));
     // Only the runner's fixed payload confirms rejection, including when JSON keys are repeated.
     if (response.status === "unsupported" && !payload.equals(UNSUPPORTED_RESPONSE))

@@ -61,18 +61,17 @@ def probe_listener(socket_path: Path) -> Iterator[socket.socket]:
             _remove_endpoint(parent, name, created)
 
 
-def serve_probe_once(
+def serve_peer_once(
     listener: socket.socket,
     allowed_uid: int,
-    staging_root: Path,
-    execute_probe: Callable[[Path], dict],
+    serve: Callable[[socket.socket], None],
     *,
     accept_timeout: float = 5.0,
 ) -> bool:
     """Serve one authorized connection synchronously, or return False for no authorized peer.
 
     Use one accept caller per listener. A True result means the peer was
-    authorized and the transport handled the connection, including error replies.
+    authorized and the handler processed the connection, including error replies.
     """
     if not math.isfinite(accept_timeout) or accept_timeout <= 0:
         raise ValueError("accept timeout must be positive and finite")
@@ -90,5 +89,21 @@ def serve_probe_once(
         _, uid, _ = _PEER_CREDENTIALS.unpack(credentials)
         if uid != allowed_uid:
             return False
-        serve_probe(connection, staging_root, execute_probe)
+        serve(connection)
     return True
+
+
+def serve_probe_once(
+    listener: socket.socket,
+    allowed_uid: int,
+    staging_root: Path,
+    execute_probe: Callable[[Path], dict],
+    *,
+    accept_timeout: float = 5.0,
+) -> bool:
+    return serve_peer_once(
+        listener,
+        allowed_uid,
+        lambda connection: serve_probe(connection, staging_root, execute_probe),
+        accept_timeout=accept_timeout,
+    )

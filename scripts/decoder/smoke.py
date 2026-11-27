@@ -9,12 +9,13 @@ import re
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -23,8 +24,8 @@ from typing import BinaryIO, cast
 
 from boundary_probe import BOUNDARY_CHECKS, UNMOUNTED_SOURCE_NAME
 from cancellation_probe import CANCELLATION_CHILD_PREFIX, CANCELLATION_READY
-from probe_listener import probe_listener, serve_probe_once
-from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported
+from probe_listener import probe_listener, serve_peer_once
+from probe_transport import MAX_RESPONSE_BYTES, ProbeUnsupported, serve_probe
 from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -261,36 +262,27 @@ def decode(image: str, source: Path, request: dict, destination: Path) -> dict:
         return read_bundle(stream, destination, request["operation"])
 
 
-def decode_over_socket(
-    image: str, staging_root: Path, source: Path, request: dict, destination: Path
-) -> dict:
+def analyze_over_socket(image: str, staging_root: Path, source: Path, destination: Path) -> dict:
     expected_hash = hash_file(source)
-    operation = request["operation"]
-    require(operation in ("analyze", "render"), "unsupported artifact transport smoke")
 
-    def execute(staged: Path, output_dir: Path, received: dict = request) -> dict:
-        require(hash_file(staged) == expected_hash, "artifact transport changed the source bytes")
-        require(received == request, "render transport changed the submitted plan")
-        return decode(image, staged, received, output_dir)
+    def execute(staged: Path, output_dir: Path) -> dict:
+        require(hash_file(staged) == expected_hash, "analysis staging changed the source bytes")
+        return decode(image, staged, {"version": 1, "operation": "analyze"}, output_dir)
 
     sender, runner = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
     with ThreadPoolExecutor(max_workers=1) as executor, sender, runner:
-        handler = serve_render if operation == "render" else serve_analysis
-        worker = executor.submit(handler, runner, staging_root, execute)
+        worker = executor.submit(serve_analysis, runner, staging_root, execute)
         # The isolated decoder already has a process deadline and verified container cleanup.
         sender.settimeout(130)
-        if operation == "render":
-            encoded = json.dumps(request, allow_nan=False).encode("utf-8")
-            sender.sendall(len(encoded).to_bytes(4, "big") + encoded)
         with source.open("rb") as content:
             sender.sendall(os.fstat(content.fileno()).st_size.to_bytes(4, "big"))
             while chunk := content.read(CHUNK_BYTES):
                 sender.sendall(chunk)
         sender.shutdown(socket.SHUT_WR)
         with sender.makefile("rb") as response:
-            result = read_bundle(response, destination, operation)
+            result = read_bundle(response, destination, "analyze")
         worker.result(timeout=15)
-    require(not any(staging_root.iterdir()), "artifact staging remains after the response")
+    require(not any(staging_root.iterdir()), "analysis staging remains after the response")
     return result
 
 
@@ -306,6 +298,33 @@ def execute_container_probe(image: str, source: Path) -> dict:
     return read_bundle(io.BytesIO(output), source.parent / "bundle", "probe")
 
 
+def client_over_listener(
+    staging_root: Path,
+    allowed_uid: int,
+    serve: Callable[[socket.socket], None],
+    script: str,
+    args: list[str],
+) -> dict:
+    with tempfile.TemporaryDirectory(prefix="runner-socket-", dir=staging_root.parent) as directory:
+        endpoint = Path(directory) / "runner.sock"
+        with probe_listener(endpoint) as listener, ThreadPoolExecutor(max_workers=1) as executor:
+            worker = executor.submit(serve_peer_once, listener, allowed_uid, serve, accept_timeout=10.0)
+            result = subprocess.run(
+                ["node", "--import", "tsx", script, str(endpoint), *args],
+                cwd=ROOT,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=130,
+                check=True,
+            )
+            require(worker.result(timeout=120) == (allowed_uid == os.geteuid()), "unexpected peer decision")
+        require(not endpoint.exists(), "socket remains after the listener closed")
+    require(not any(staging_root.iterdir()), "runner staging remains after the response")
+    require(0 < len(result.stdout) <= MAX_RESPONSE_BYTES, "invalid client receipt length")
+    return decode_object(result.stdout)
+
+
 def probe_over_listener(image: str, staging_root: Path, source: Path, allowed_uid: int) -> dict:
     expected_hash = hash_file(source)
     calls = 0
@@ -316,35 +335,57 @@ def probe_over_listener(image: str, staging_root: Path, source: Path, allowed_ui
         require(hash_file(staged) == expected_hash, "probe staging changed the source bytes")
         return execute_container_probe(image, staged)
 
-    with tempfile.TemporaryDirectory(prefix="probe-socket-", dir=staging_root.parent) as directory:
-        endpoint = Path(directory) / "probe.sock"
-        with probe_listener(endpoint) as listener, ThreadPoolExecutor(max_workers=1) as executor:
-            worker = executor.submit(
-                serve_probe_once, listener, allowed_uid, staging_root, execute, accept_timeout=10.0
-            )
-            result = subprocess.run(
-                [
-                    "node",
-                    "--import",
-                    "tsx",
-                    "scripts/decoder/probe-client-smoke.ts",
-                    str(endpoint),
-                    str(source),
-                ],
-                cwd=ROOT,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                timeout=130,
-                check=True,
-            )
-            authorized = allowed_uid == os.geteuid()
-            require(worker.result(timeout=120) == authorized, "probe listener peer decision differs")
-            require(calls == int(authorized), "probe listener started the wrong number of decoders")
-        require(not endpoint.exists(), "probe socket remains after the listener closed")
-    require(not any(staging_root.iterdir()), "probe staging remains after the response")
-    require(0 < len(result.stdout) <= MAX_RESPONSE_BYTES, "invalid probe client response length")
-    return decode_object(result.stdout)
+    result = client_over_listener(
+        staging_root,
+        allowed_uid,
+        lambda connection: serve_probe(connection, staging_root, execute),
+        "scripts/decoder/probe-client-smoke.ts",
+        [str(source)],
+    )
+    require(calls == int(allowed_uid == os.geteuid()), "probe listener started the wrong number of decoders")
+    return result
+
+
+def render_over_listener(
+    image: str, staging_root: Path, source: Path, receiving_root: Path, plan: dict
+) -> tuple[dict, Path]:
+    expected_hash = hash_file(source)
+    request = {"version": 1, "operation": "render", "plan": plan}
+
+    def execute(staged: Path, output_dir: Path, received: dict) -> dict:
+        require(hash_file(staged) == expected_hash, "render staging changed the source bytes")
+        require(received == request, "render transport changed the submitted plan")
+        return decode(image, staged, received, output_dir)
+
+    reply = client_over_listener(
+        staging_root,
+        os.geteuid(),
+        lambda connection: serve_render(connection, staging_root, execute),
+        "scripts/decoder/render-client-smoke.ts",
+        [str(source), str(receiving_root), json.dumps(plan, allow_nan=False)],
+    )
+    attempt = reply.get("attempt")
+    require(
+        reply.keys() == {"attempt", "metadata"}
+        and isinstance(reply["metadata"], dict)
+        and isinstance(attempt, str)
+        and re.fullmatch(r"render-[A-Za-z0-9]+", attempt) is not None,
+        "invalid render import receipt",
+    )
+    receiving_dir = receiving_root / cast(str, attempt)
+    output = receiving_dir / "render.mp4"
+    directory_mode = receiving_dir.lstat().st_mode
+    output_mode = output.lstat().st_mode
+    require(
+        stat.S_ISDIR(directory_mode)
+        and stat.S_ISREG(output_mode)
+        and list(receiving_root.iterdir()) == [receiving_dir]
+        and list(receiving_dir.iterdir()) == [output]
+        and stat.S_IMODE(directory_mode) == 0o700
+        and stat.S_IMODE(output_mode) == 0o600,
+        "render client staging differs from the private import contract",
+    )
+    return reply["metadata"], output
 
 
 def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
@@ -506,9 +547,7 @@ def run_smoke(image: str) -> None:
             "container probe does not match the fixture",
         )
         analyze_dir = root / "analyze"
-        analyzed = decode_over_socket(
-            image, staging_root, source, {"version": 1, "operation": "analyze"}, analyze_dir
-        )
+        analyzed = analyze_over_socket(image, staging_root, source, analyze_dir)
         require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
         candidates = analyzed["candidates"]
         require(
@@ -525,27 +564,25 @@ def run_smoke(image: str) -> None:
             thumbnail = analyze_dir / image_name
             require(host_probe(thumbnail)[:2] == (640, 360), "analysis image has unexpected dimensions")
             check_decode(thumbnail)
-        render_dir = root / "render"
-        rendered = decode_over_socket(
+        receiving_root = root / "render"
+        receiving_root.mkdir(mode=0o700)
+        rendered, render_path = render_over_listener(
             image,
             staging_root,
             source,
+            receiving_root,
             {
                 "version": 1,
-                "operation": "render",
-                "plan": {
-                    "version": 1,
-                    "startMs": 800,
-                    "endMs": 2800,
-                    "layout": "crop",
-                    "profile": "standard",
-                    "muteAudio": True,
-                    "captions": [{"startMs": 200, "endMs": 1500, "text": "Original test footage"}],
-                },
+                "startMs": 800,
+                "endMs": 2800,
+                "layout": "crop",
+                "profile": "standard",
+                "crop": {"x": 0, "y": 0, "width": 1, "height": 1},
+                "facecam": {"x": 0, "y": 0, "width": 1, "height": 1},
+                "muteAudio": True,
+                "captions": [{"startMs": 200, "endMs": 1500, "text": "Original test footage"}],
             },
-            render_dir,
         )
-        render_path = render_dir / "render.mp4"
         require(host_probe(render_path) == (720, 1280, 2000, False, "h264"), "render has unexpected metadata")
         require(
             (rendered["width"], rendered["height"], rendered["durationMs"], rendered["codec"])
@@ -569,6 +606,7 @@ def run_smoke(image: str) -> None:
                 "probeListenerClientVerified": True,
                 "analysisTransportVerified": True,
                 "renderTransportVerified": True,
+                "renderClientVerified": True,
                 "analyzeArtifacts": len(candidates) + 2,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,

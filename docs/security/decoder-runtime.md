@@ -120,12 +120,16 @@ request parser and plan handling. The source frame follows the request.
 One intake deadline covers both frames and the write half-close.
 
 Render uses the same private staging, bounded response spool and send deadline
-as analysis. The receiver accepts only a render bundle containing
-`render.mp4`. The hosted smoke confirms the render request arrived intact,
-decodes the received export and checks the original source hash.
+as analysis. The TypeScript render client uses an independent deadline and
+accepts only a strict render bundle containing `render.mp4`. It checks the
+metadata, exact file length and EOF, then returns the new private attempt
+directory. Failed exchanges remove attempt files. The hosted smoke sends a
+validated render plan through a UID-checked listener, decodes the received
+export and checks the original source hash. The receiver's structural checks
+leave media decoding and publication decisions to the caller.
 
 The probe, analysis and render paths are exercised in smoke. The application
-artifact receiver, runner service and cancellation after accepted intake
+analysis receiver, runner service and cancellation after accepted intake
 remain to be integrated.
 
 ## Application execution
