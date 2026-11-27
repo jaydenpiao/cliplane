@@ -36,10 +36,9 @@ target TLS verification remains open in [#28](https://github.com/jaydenpiao/clip
 - Finish [decoder isolation #2](https://github.com/jaydenpiao/cliplane/issues/2). The
   hosted smoke covers filesystem and network isolation, resource ceilings and
   container cancellation. Upload probing and jobs now share an explicitly selected
-  executor. The hosted smoke sends a probe from the TypeScript client through a
-  private listener that checks the peer UID. Fixed analysis and render
-  transports import real output bundles into private scratch through TypeScript
-  clients. Complete runner service integration and active cancellation.
+  executor. The hosted smoke connects all three TypeScript clients to the
+  UID-checked private runner loop and imports real output bundles into private
+  scratch. Complete deployment wiring, executor integration and active cancellation.
   Qualify the production runtime and workload profile before selecting the
   isolated backend.
 - Add [durable resumable ingest #3](https://github.com/jaydenpiao/cliplane/issues/3) and
