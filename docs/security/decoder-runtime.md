@@ -171,9 +171,16 @@ source, attestation, or job and removes the staged file. Confirmed probe input
 rejection returns HTTP 400. An unavailable executor or invalid probe response
 returns HTTP 503 without exposing worker details.
 
-Startup currently selects the native worker. Its probe uses an explicit input
-rejection status to distinguish unsupported input from an execution failure.
-The isolated runner still needs an application adapter for probe, analyze and
-render, along with production sizing, deadline and cancellation validation.
-The smoke continues to report `decoderIsolationQualified: false`. The local
-rootless driver-none daemon fails controller preflight.
+The isolated `MediaExecutor` uses the three fixed private sockets and passes
+the caller's cancellation signal to each client. Only the fixed unsupported
+probe response produces `UnsupportedMediaError`. The executor imports verified
+artifacts on the destination filesystem, using exclusively created analysis
+directories and no-replace file links. Its destinations are trusted private job
+attempt paths. On failure or cancellation it removes its own incomplete output
+and scratch. The job's lease and approval checks control publication.
+
+Startup currently selects the native worker. Production selection requires
+deployment and workload qualification, including lease cancellation and
+publication through the isolated executor. The smoke continues to report
+`decoderIsolationQualified: false`. The local rootless driver-none daemon
+fails controller preflight.

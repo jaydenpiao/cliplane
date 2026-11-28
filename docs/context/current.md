@@ -40,8 +40,10 @@ target TLS verification remains open in [#28](https://github.com/jaydenpiao/clip
   UID-checked private runner loop and imports real output bundles into private
   scratch. The runner executor owns fixed decoder requests and verified
   container cleanup. Hosted smoke verifies cancellation when an accepted
-  private client disconnects. Complete deployment wiring and API integration,
-  including the application job lease path.
+  private client disconnects. The isolated `MediaExecutor` maps all three
+  private clients to the existing app contract and installs validated artifacts
+  in private attempt paths. Complete deployment wiring and verify the job lease
+  cancellation and publication path. Startup still selects native decoding.
   Qualify the production runtime and workload profile before selecting the
   isolated backend.
 - Add [durable resumable ingest #3](https://github.com/jaydenpiao/cliplane/issues/3) and
