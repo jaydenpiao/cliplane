@@ -137,9 +137,9 @@ def running_service(
     require(not any(staging_root.iterdir()), "runner staging remains after shutdown")
 
 
-def call_runner(endpoint: Path, script: str, args: list[str]) -> dict:
+def call_runner(socket_path: Path, script: str, args: list[str]) -> dict:
     result = subprocess.run(
-        ["node", "--import", "tsx", script, str(endpoint), *args],
+        ["node", "--import", "tsx", script, str(socket_path), *args],
         cwd=ROOT,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
@@ -155,54 +155,9 @@ def probe_over_service(endpoint: Path, source: Path) -> dict:
     return call_runner(endpoint, "scripts/decoder/probe-client-smoke.ts", [str(source)])
 
 
-def private_receipt(receiving_root: Path, attempt: object, prefix: str, names: list[str]) -> Path:
-    if not isinstance(attempt, str) or re.fullmatch(rf"{prefix}-[A-Za-z0-9]+", attempt) is None:
-        raise SmokeError("invalid artifact attempt name")
-    directory = receiving_root / attempt
-    directory_mode = directory.lstat().st_mode
-    require(
-        stat.S_ISDIR(directory_mode)
-        and stat.S_IMODE(directory_mode) == 0o700
-        and list(receiving_root.iterdir()) == [directory]
-        and {path.name for path in directory.iterdir()} == set(names),
-        "client staging differs from the private import contract",
-    )
-    for name in names:
-        mode = (directory / name).lstat().st_mode
-        require(stat.S_ISREG(mode) and stat.S_IMODE(mode) == 0o600, "imported artifact is not private")
-    return directory
-
-
-def analyze_over_service(endpoint: Path, source: Path, receiving_root: Path) -> tuple[dict, Path]:
-    reply = call_runner(
-        endpoint,
-        "scripts/decoder/analysis-client-smoke.ts",
-        [str(source), str(receiving_root)],
-    )
-    require(
-        reply.keys() == {"attempt", "result"} and isinstance(reply["result"], dict),
-        "invalid analysis receipt",
-    )
-    result = reply["result"]
-    candidates = result["candidates"]
-    require(isinstance(candidates, list) and 1 <= len(candidates) <= 8, "invalid fixture candidates")
-    names = ["proxy.mp4", "poster.jpg", *(f"thumb-{index}.jpg" for index in range(len(candidates)))]
-    directory = private_receipt(receiving_root, reply["attempt"], "analysis", names)
-    return result, directory
-
-
-def render_over_service(endpoint: Path, source: Path, receiving_root: Path, plan: dict) -> tuple[dict, Path]:
-    reply = call_runner(
-        endpoint,
-        "scripts/decoder/render-client-smoke.ts",
-        [str(source), str(receiving_root), json.dumps(plan, allow_nan=False)],
-    )
-    require(
-        reply.keys() == {"attempt", "metadata"} and isinstance(reply["metadata"], dict),
-        "invalid render import receipt",
-    )
-    directory = private_receipt(receiving_root, reply["attempt"], "render", ["render.mp4"])
-    return reply["metadata"], directory / "render.mp4"
+def check_private_artifact(path: Path) -> None:
+    mode = path.lstat().st_mode
+    require(stat.S_ISREG(mode) and stat.S_IMODE(mode) == 0o600, "imported artifact is not private")
 
 
 def check_boundaries(image: str, source: Path, expected_hash: str) -> None:
@@ -337,6 +292,8 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
     analysis_receiving_root, render_receiving_root = root / "analyze", root / "render"
     for directory in (socket_root, staging_root, analysis_receiving_root, render_receiving_root):
         directory.mkdir(mode=0o700)
+    analyze_dir = analysis_receiving_root / "analysis-attempt"
+    render_path = render_receiving_root / "render-attempt.mp4"
 
     original_hash = hash_file(source)
     invalid = root / "invalid-media"
@@ -360,23 +317,16 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
 
     uid = os.geteuid()
     with running_service(socket_root, staging_root, uid, probe, analyze, render):
-        reply = probe_over_service(socket_root / "probe.sock", source)
-        require(
-            reply.keys() == {"status", "metadata"}
-            and reply["status"] == "ok"
-            and isinstance(reply["metadata"], dict),
-            "valid fixture probe did not return metadata",
-        )
-        metadata = reply["metadata"]
-        require(
-            probe_over_service(socket_root / "probe.sock", invalid) == {"status": "unsupported"},
-            "invalid media did not return an unsupported probe response",
-        )
-        analyzed, analyze_dir = analyze_over_service(
-            socket_root / "analyze.sock", source, analysis_receiving_root
-        )
-        rendered, render_path = render_over_service(
-            socket_root / "render.sock", source, render_receiving_root, plan
+        reply = call_runner(
+            socket_root,
+            "scripts/decoder/isolated-media-executor-smoke.ts",
+            [
+                str(source),
+                str(invalid),
+                str(analyze_dir),
+                str(render_path),
+                json.dumps(plan, allow_nan=False),
+            ],
         )
 
     with running_service(socket_root, staging_root, uid ^ 1, probe, analyze, render):
@@ -395,6 +345,12 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
         "runner did not dispatch exactly the authorized operations and source bytes",
     )
     require(
+        reply.keys() == {"metadata", "analysis", "render"}
+        and all(isinstance(receipt, dict) for receipt in reply.values()),
+        "invalid isolated executor receipt",
+    )
+    metadata, analyzed, rendered = reply["metadata"], reply["analysis"], reply["render"]
+    require(
         (metadata["width"], metadata["height"], metadata["durationMs"], metadata["codec"])
         == (1280, 720, 24000, "h264")
         and metadata["hasAudio"] is True,
@@ -402,6 +358,20 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
     )
     require(analyzed["metadata"] == metadata, "analysis source metadata differs from probe")
     candidates = analyzed["candidates"]
+    require(isinstance(candidates, list) and 1 <= len(candidates) <= 8, "invalid fixture candidates")
+    thumbnails = ["poster.jpg", *(f"thumb-{index}.jpg" for index in range(len(candidates)))]
+    directory_mode = analyze_dir.lstat().st_mode
+    require(
+        stat.S_ISDIR(directory_mode)
+        and stat.S_IMODE(directory_mode) == 0o700
+        and list(analysis_receiving_root.iterdir()) == [analyze_dir]
+        and {path.name for path in analyze_dir.iterdir()} == {"proxy.mp4", *thumbnails}
+        and list(render_receiving_root.iterdir()) == [render_path],
+        "executor output differs from the private import contract",
+    )
+    for name in ["proxy.mp4", *thumbnails]:
+        check_private_artifact(analyze_dir / name)
+    check_private_artifact(render_path)
     proxy = analyze_dir / "proxy.mp4"
     width, height, duration, audio, codec = host_probe(proxy)
     require(
@@ -409,7 +379,7 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
         "analysis proxy has unexpected metadata",
     )
     check_decode(proxy)
-    for image_name in ["poster.jpg", *(f"thumb-{index}.jpg" for index in range(len(candidates)))]:
+    for image_name in thumbnails:
         thumbnail = analyze_dir / image_name
         require(host_probe(thumbnail)[:2] == (640, 360), "analysis image has unexpected dimensions")
         check_decode(thumbnail)
@@ -555,6 +525,7 @@ def run_smoke(image: str) -> None:
                 "renderClientVerified": True,
                 "runnerServiceVerified": True,
                 "runnerExecutorVerified": True,
+                "isolatedMediaExecutorVerified": True,
                 "postIntakeCancellationVerified": True,
                 "analyzeArtifacts": analyze_artifacts,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
