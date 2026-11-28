@@ -153,8 +153,15 @@ bundle and waits for successful decoder exit and verified container cleanup
 before returning. If either step fails after import, the executor removes its
 private output. The runner process holds Docker authority.
 
-Deployment configuration, app selection and cancellation of already accepted
-decoder work remain open.
+The accepted connection also provides the cancellation signal. Its required
+write half-close allows the decoder to continue. A full disconnect interrupts
+the runner's output read or exit wait and triggers verified container cleanup.
+The transport discards tentative output and source staging. Hosted smoke
+observes a live descendant before disconnecting the client, confirms that
+the owned container and descendant exited, and reuses the same service.
+
+Deployment configuration and app selection, including job lease cancellation
+through the private runner, remain open.
 
 ## Application execution
 

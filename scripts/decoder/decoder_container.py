@@ -1,17 +1,20 @@
 """Runner-only lifecycle for one owned, isolated decoder container."""
 
+import io
 import json
 import os
 import re
+import select
 import signal
 import stat
 import subprocess
 import tempfile
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import Buffer, Callable, Iterator
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from time import monotonic
 from typing import BinaryIO, cast
 
 IMAGE_ID = re.compile(r"sha256:[a-f0-9]{64}")
@@ -22,6 +25,8 @@ _OWNERSHIP_FORMAT = (
     f'"owner":{{{{json (index .Config.Labels "{_OWNER_LABEL}")}}}}}}'
 )
 _PROXY_NAMES = ("HTTP_PROXY", "HTTPS_PROXY", "FTP_PROXY", "ALL_PROXY", "NO_PROXY")
+_EXIT_TIMEOUT = 5
+_CANCEL_POLL_MS = 100
 
 
 class DecoderExit(ValueError):
@@ -30,6 +35,13 @@ class DecoderExit(ValueError):
     def __init__(self, status: int) -> None:
         super().__init__("decoder exited unsuccessfully")
         self.status = status
+
+
+class DecoderCancelled(ValueError):
+    """The decoder caller disconnected before the exchange completed."""
+
+    def __init__(self) -> None:
+        super().__init__("decoder execution cancelled")
 
 
 class DecoderContainerError(ValueError):
@@ -83,6 +95,48 @@ def _remove_owned_container(container_id: str, token: str, image: str) -> None:
         raise DecoderContainerError("owned container remains")
 
 
+def _check_cancelled(cancelled: Callable[[], bool] | None) -> None:
+    if cancelled is not None and cancelled():
+        raise DecoderCancelled()
+
+
+class _CancellablePipe(io.RawIOBase):
+    def __init__(self, descriptor: int, cancelled: Callable[[], bool]) -> None:
+        super().__init__()
+        self._descriptor = descriptor
+        self._cancelled = cancelled
+        self._poll = select.poll()
+        self._poll.register(descriptor, select.POLLIN)
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: Buffer, /) -> int:
+        while True:
+            _check_cancelled(self._cancelled)
+            if self._poll.poll(_CANCEL_POLL_MS):
+                _check_cancelled(self._cancelled)
+                # An ordinary pipe hangup makes readv return zero (EOF).
+                return os.readv(self._descriptor, (buffer,))
+
+
+def _wait_for_exit(process: subprocess.Popen[bytes], cancelled: Callable[[], bool] | None) -> int:
+    if cancelled is None:
+        return process.wait(timeout=_EXIT_TIMEOUT)
+    deadline = monotonic() + _EXIT_TIMEOUT
+    while True:
+        _check_cancelled(cancelled)
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(process.args, _EXIT_TIMEOUT)
+        try:
+            status = process.wait(timeout=min(remaining, _CANCEL_POLL_MS / 1000))
+        except subprocess.TimeoutExpired:
+            continue
+        _check_cancelled(cancelled)
+        return status
+
+
 @dataclass
 class AttachedDecoder:
     stdout: BinaryIO
@@ -107,10 +161,13 @@ def container_stream(
     *,
     entrypoint: str | None = None,
     args: tuple[str, ...] = (),
+    cancelled: Callable[[], bool] | None = None,
 ) -> Iterator[AttachedDecoder]:
     """Attach to one fixed-profile decoder using a file under trusted staging.
 
     Only runner-controlled diagnostics may override the image entrypoint or arguments.
+    The optional predicate must report peer disconnect promptly. One reader
+    uses the attached stdout, with no concurrent reads from the Popen stream.
     """
     if not IMAGE_ID.fullmatch(image):
         raise DecoderContainerError("expected a full immutable Docker image ID")
@@ -119,6 +176,7 @@ def container_stream(
     if not stat.S_ISREG(source.lstat().st_mode):
         raise DecoderContainerError("decoder source must be a regular file")
 
+    _check_cancelled(cancelled)
     token = uuid.uuid4().hex
     name = f"cliplane-decoder-smoke-{token}"
     container_id = None
@@ -168,6 +226,7 @@ def container_stream(
         with tempfile.TemporaryFile(dir=source.parent) as request_file:
             request_file.write(input_data)
             request_file.seek(0)
+            _check_cancelled(cancelled)
             # A separate process group and an external deadline keep a stalled pipe read bounded.
             process = subprocess.Popen(
                 ["timeout", "--signal=KILL", "75s", "docker", "container", "start", "-ai", container_id],
@@ -176,28 +235,29 @@ def container_stream(
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
-            try:
-                if process.stdout is None:
-                    raise DecoderContainerError("decoder output stream missing")
-                attached = AttachedDecoder(
-                    cast(BinaryIO, process.stdout), container_id, process, token, image
-                )
-                yield attached
-                if not attached._stopped:
-                    status = process.wait(timeout=5)
-                    if status != 0:
-                        raise DecoderExit(status)
-            finally:
+            with ExitStack() as pipes:
+                if process.stdout is not None:
+                    pipes.callback(process.stdout.close)
                 try:
+                    if process.stdout is None:
+                        raise DecoderContainerError("decoder output stream missing")
+                    stdout = cast(BinaryIO, process.stdout)
+                    if cancelled is not None:
+                        reader = io.BufferedReader(_CancellablePipe(stdout.fileno(), cancelled))
+                        stdout = cast(BinaryIO, pipes.enter_context(reader))
+                    attached = AttachedDecoder(stdout, container_id, process, token, image)
+                    yield attached
+                    if not attached._stopped:
+                        status = _wait_for_exit(process, cancelled)
+                        if status != 0:
+                            raise DecoderExit(status)
+                finally:
                     if process.poll() is None:
                         try:
                             os.killpg(process.pid, signal.SIGKILL)
                         except ProcessLookupError:
                             pass
-                        process.wait(timeout=5)
-                finally:
-                    if process.stdout is not None:
-                        process.stdout.close()
+                        process.wait(timeout=_EXIT_TIMEOUT)
     finally:
         if attached is None or not attached._stopped:
             # Resolve an ambiguous create by the opaque label, never by name alone.

@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -26,8 +27,8 @@ from resource_probe import RESOURCE_CHECKS
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workers/media"))
-from artifact_protocol import decode_object
-from decoder_container import IMAGE_ID, container_stream, docker
+from artifact_protocol import CHUNK_BYTES, decode_object
+from decoder_container import IMAGE_ID, DecoderCancelled, container_stream, docker
 from runner_executor import DecoderExecutor
 from runner_service import serve_runner
 
@@ -109,9 +110,9 @@ def running_service(
     socket_root: Path,
     staging_root: Path,
     allowed_uid: int,
-    probe: Callable[[Path], dict],
-    analyze: Callable[[Path, Path], dict],
-    render: Callable[[Path, Path, dict], dict],
+    probe: Callable[[Path, Callable[[], bool]], dict],
+    analyze: Callable[[Path, Path, Callable[[], bool]], dict],
+    render: Callable[[Path, Path, dict, Callable[[], bool]], dict],
 ) -> Iterator[None]:
     ready, stop = Event(), Event()
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -317,18 +318,8 @@ def check_decode(path: Path) -> None:
     )
 
 
-def check_runner_service(image: str, root: Path, source: Path) -> int:
-    socket_root, staging_root = root / "sockets", root / "runner-staging"
-    analysis_receiving_root, render_receiving_root = root / "analyze", root / "render"
-    for directory in (socket_root, staging_root, analysis_receiving_root, render_receiving_root):
-        directory.mkdir(mode=0o700)
-
-    original_hash = hash_file(source)
-    invalid = root / "invalid-media"
-    invalid.write_bytes(b"not a supported media container")
-    decoder = DecoderExecutor(image)
-    calls: list[tuple[str, str]] = []
-    plan = {
+def fixture_render_plan() -> dict:
+    return {
         "version": 1,
         "startMs": 800,
         "endMs": 2800,
@@ -340,18 +331,32 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
         "captions": [{"startMs": 200, "endMs": 1500, "text": "Original test footage"}],
     }
 
-    def probe(staged: Path) -> dict:
+
+def check_runner_service(image: str, root: Path, source: Path) -> int:
+    socket_root, staging_root = root / "sockets", root / "runner-staging"
+    analysis_receiving_root, render_receiving_root = root / "analyze", root / "render"
+    for directory in (socket_root, staging_root, analysis_receiving_root, render_receiving_root):
+        directory.mkdir(mode=0o700)
+
+    original_hash = hash_file(source)
+    invalid = root / "invalid-media"
+    invalid.write_bytes(b"not a supported media container")
+    decoder = DecoderExecutor(image)
+    calls: list[tuple[str, str]] = []
+    plan = fixture_render_plan()
+
+    def probe(staged: Path, cancelled: Callable[[], bool]) -> dict:
         calls.append(("probe", hash_file(staged)))
-        return decoder.probe(staged)
+        return decoder.probe(staged, cancelled=cancelled)
 
-    def analyze(staged: Path, output_dir: Path) -> dict:
+    def analyze(staged: Path, output_dir: Path, cancelled: Callable[[], bool]) -> dict:
         calls.append(("analyze", hash_file(staged)))
-        return decoder.analyze(staged, output_dir)
+        return decoder.analyze(staged, output_dir, cancelled=cancelled)
 
-    def render(staged: Path, output_dir: Path, received: dict) -> dict:
+    def render(staged: Path, output_dir: Path, received: dict, cancelled: Callable[[], bool]) -> dict:
         calls.append(("render", hash_file(staged)))
         require(received == {"version": 1, "operation": "render", "plan": plan}, "unexpected render plan")
-        return decoder.render(staged, output_dir, received)
+        return decoder.render(staged, output_dir, received, cancelled=cancelled)
 
     uid = os.geteuid()
     with running_service(socket_root, staging_root, uid, probe, analyze, render):
@@ -420,6 +425,90 @@ def check_runner_service(image: str, root: Path, source: Path) -> int:
     return len(candidates) + 2
 
 
+def check_post_intake_cancellation(image: str, root: Path, source: Path) -> None:
+    socket_root, staging_root = root / "cancel-sockets", root / "cancel-staging"
+    socket_root.mkdir(mode=0o700)
+    staging_root.mkdir(mode=0o700)
+    accepted, verified = Event(), Event()
+    source_hash = hash_file(source)
+    request = {"version": 1, "operation": "render", "plan": fixture_render_plan()}
+    decoder = DecoderExecutor(image)
+
+    def probe(staged: Path, cancelled: Callable[[], bool]) -> dict:
+        require(hash_file(staged) == source_hash, "reused service received different source bytes")
+        return decoder.probe(staged, cancelled=cancelled)
+
+    def render(staged: Path, output_dir: Path, received: dict, cancelled: Callable[[], bool]) -> dict:
+        require(received == request and hash_file(staged) == source_hash, "invalid cancellation fixture")
+        token = uuid.uuid4().hex
+        script = Path(__file__).with_name("cancellation_probe.py").read_bytes()
+        descendant = None
+        container_id = None
+        try:
+            with container_stream(
+                image,
+                staged,
+                script,
+                entrypoint="/usr/bin/python3",
+                args=("-I", "-B", "-u", "-", token),
+                cancelled=cancelled,
+            ) as run:
+                ready = f"{CANCELLATION_READY}\n".encode("ascii")
+                require(run.stdout.readline(len(ready)) == ready, "accepted decoder descendant did not start")
+                container_id = run.container_id
+                descendant = find_host_descendant(
+                    container_id, (CANCELLATION_CHILD_PREFIX + token).encode("ascii")
+                )
+                require(
+                    run.process.poll() is None and not cancelled(), "half-closed client did not stay active"
+                )
+                output_dir.mkdir(mode=0o700)
+                (output_dir / "render.mp4").write_bytes(b"tentative synthetic data")
+                accepted.set()
+                run.stdout.read(1)
+                raise SmokeError("post-intake cancellation did not interrupt the output read")
+        except DecoderCancelled:
+            if descendant is None or container_id is None:
+                raise SmokeError("decoder cancelled before the live witness") from None
+            verify_descendant_gone(*descendant)
+            inspected = docker("container", "inspect", container_id)
+            require(
+                inspected.returncode == 1
+                and inspected.stdout.strip() in ("", "[]")
+                and inspected.stderr.strip()
+                in {
+                    f"Error: No such container: {container_id}",
+                    f"Error response from daemon: No such container: {container_id}",
+                },
+                "cancelled decoder container still exists",
+            )
+            verified.set()
+            raise
+
+    def analyze(staged: Path, output_dir: Path, cancelled: Callable[[], bool]) -> dict:
+        return decoder.analyze(staged, output_dir, cancelled=cancelled)
+
+    with running_service(socket_root, staging_root, os.geteuid(), probe, analyze, render):
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(10)
+            client.connect(str(socket_root / "render.sock"))
+            encoded = json.dumps(request).encode("utf-8")
+            client.sendall(len(encoded).to_bytes(4, "big") + encoded)
+            with source.open("rb") as content:
+                client.sendall(os.fstat(content.fileno()).st_size.to_bytes(4, "big"))
+                while chunk := content.read(CHUNK_BYTES):
+                    client.sendall(chunk)
+            client.shutdown(socket.SHUT_WR)
+            require(accepted.wait(15), "render did not reach the post-intake witness")
+        require(verified.wait(20), "disconnect did not promptly remove the accepted decoder")
+        reply = probe_over_service(socket_root / "probe.sock", source)
+        require(
+            reply.get("status") == "ok" and reply["metadata"]["durationMs"] == 24000, "runner reuse failed"
+        )
+        require(not any(staging_root.iterdir()), "cancelled attempt staging remains")
+    require(hash_file(source) == source_hash, "cancelled request changed the source")
+
+
 def run_smoke(image: str) -> None:
     require(IMAGE_ID.fullmatch(image) is not None, "expected a full immutable Docker image ID")
     subprocess.run(
@@ -446,6 +535,7 @@ def run_smoke(image: str) -> None:
         check_resources(image, source)
         check_cancellation(image, source)
         analyze_artifacts = check_runner_service(image, root, source)
+        check_post_intake_cancellation(image, root, source)
         require(hash_file(source) == initial_hash, "mounted synthetic source bytes changed")
     require(hash_file(FIXTURE) == initial_hash, "synthetic fixture bytes changed")
     print(
@@ -465,6 +555,7 @@ def run_smoke(image: str) -> None:
                 "renderClientVerified": True,
                 "runnerServiceVerified": True,
                 "runnerExecutorVerified": True,
+                "postIntakeCancellationVerified": True,
                 "analyzeArtifacts": analyze_artifacts,
                 "render": {"width": 720, "height": 1280, "durationMs": 2000, "hasAudio": False},
                 "sourceUnchanged": True,
