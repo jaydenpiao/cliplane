@@ -5,12 +5,15 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts/decoder"))
-from decoder_container import DecoderExit, container_stream
+from decoder_container import DecoderCancelled, DecoderExit, container_stream
 
 IMAGE = "sha256:" + "a" * 64
 ID = "b" * 64
@@ -75,6 +78,7 @@ class FakeDocker:
         self.attach_argv = argv
         self.attach_options = kwargs
         self.request = kwargs["stdin"].read()
+        self.process.args = argv
         return self.process
 
 
@@ -239,3 +243,133 @@ class DecoderContainerTests(unittest.TestCase):
             pass
         self.assertNotIsInstance(error.exception, DecoderExit)
         self.assertTrue(self.fake.present)
+
+    def output_pipe(self):
+        reader, writer = os.pipe()
+        self.fake.process.stdout.close()
+        self.fake.process.stdout = os.fdopen(reader, "rb")
+        self.addCleanup(self.fake.process.stdout.close)
+        return os.fdopen(writer, "wb", buffering=0)
+
+    def test_disconnect_before_create_never_calls_docker(self):
+        with (
+            self.assertRaises(DecoderCancelled),
+            container_stream(IMAGE, self.source, b"", cancelled=lambda: True),
+        ):
+            self.fail("launched after initial cancellation")
+        self.docker.assert_not_called()
+
+    def test_disconnect_during_create_cleans_up_without_attaching(self):
+        with (
+            self.assertRaises(DecoderCancelled),
+            container_stream(IMAGE, self.source, b"", cancelled=lambda: self.fake.present),
+        ):
+            self.fail("attached after cancellation")
+        self.assertIsNone(self.fake.attach_argv)
+        self.assertEqual(
+            [command[1] for command in self.fake.commands], ["create", "inspect", "inspect", "rm", "inspect"]
+        )
+        self.assertFalse(self.fake.present)
+
+    def test_cancellable_reader_preserves_buffered_reads_and_normal_eof(self):
+        with self.output_pipe() as writer:
+            writer.write(b"ready\nsome decoder bytes")
+        with container_stream(IMAGE, self.source, b"", cancelled=lambda: False) as attached:
+            self.assertEqual(attached.stdout.readline(6), b"ready\n")
+            self.assertEqual(attached.stdout.read(4), b"some")
+            self.assertEqual(attached.stdout.read(), b" decoder bytes")
+            self.assertEqual(attached.stdout.read(1), b"")
+        self.assertFalse(self.fake.present)
+
+    def test_disconnect_interrupts_stalled_read_and_readline(self):
+        def assert_read_stops(method):
+            cancelled = threading.Event()
+            reading = threading.Event()
+            checked_while_reading = threading.Event()
+
+            def peer_closed():
+                closed = cancelled.is_set()
+                if reading.is_set():
+                    checked_while_reading.set()
+                return closed
+
+            def read_stdout():
+                with container_stream(IMAGE, self.source, b"", cancelled=peer_closed) as attached:
+                    reading.set()
+                    getattr(attached.stdout, method)(128)
+
+            # Closing the writer before joining avoids an indefinite wait on regression.
+            with ThreadPoolExecutor(max_workers=1) as executor, self.output_pipe():
+                future = executor.submit(read_stdout)
+                self.assertTrue(checked_while_reading.wait(timeout=1))
+                self.assertFalse(future.done())
+                cancelled.set()
+                with self.assertRaises(DecoderCancelled):
+                    future.result(timeout=1)
+            self.assertFalse(self.fake.present)
+            self.assertTrue(self.fake.process.stdout.closed)
+            self.killpg.assert_called_once_with(self.fake.process.pid, signal.SIGKILL)
+
+        for number, method in enumerate(("read", "readline")):
+            if number:
+                self.start_fakes()
+            with self.subTest(method=method):
+                assert_read_stops(method)
+
+    def test_disconnect_interrupts_process_exit_wait(self):
+        cancelled = threading.Event()
+        waiting = threading.Event()
+        wait_timeout = []
+        original_wait = self.fake.process.wait
+
+        def hold_exit(*, timeout):
+            if self.killpg.called:
+                return original_wait(timeout=timeout)
+            wait_timeout.append(timeout)
+            waiting.set()
+            time.sleep(min(timeout, 0.2))
+            raise subprocess.TimeoutExpired("docker attach", timeout)
+
+        def wait_for_exit():
+            with container_stream(IMAGE, self.source, b"", cancelled=cancelled.is_set):
+                pass
+
+        with (
+            self.output_pipe(),
+            patch.object(self.fake.process, "wait", side_effect=hold_exit),
+            ThreadPoolExecutor(max_workers=1) as executor,
+        ):
+            future = executor.submit(wait_for_exit)
+            self.assertTrue(waiting.wait(timeout=1))
+            cancelled.set()
+            with self.assertRaises(DecoderCancelled):
+                future.result(timeout=1)
+        self.assertTrue(all(0 < timeout <= 0.1 for timeout in wait_timeout))
+        self.assertFalse(self.fake.present)
+        self.assertTrue(self.fake.process.stdout.closed)
+        self.assertEqual(self.fake.process.wait_timeouts, [5])
+
+    def test_cancellable_exit_wait_keeps_the_original_total_deadline(self):
+        observed = []
+        original_wait = self.fake.process.wait
+
+        def hold_exit(*, timeout):
+            if self.killpg.called:
+                return original_wait(timeout=timeout)
+            observed.append(timeout)
+            raise subprocess.TimeoutExpired("docker attach", timeout)
+
+        with (
+            self.output_pipe(),
+            patch.object(self.fake.process, "wait", side_effect=hold_exit),
+            patch("decoder_container.monotonic", side_effect=(100.0, 100.0, 104.96, 105.0)),
+            self.assertRaises(subprocess.TimeoutExpired) as error,
+            container_stream(IMAGE, self.source, b"", cancelled=lambda: False),
+        ):
+            pass
+        self.assertEqual(error.exception.timeout, 5)
+        self.assertEqual(len(observed), 2)
+        self.assertAlmostEqual(observed[0], 0.1)
+        self.assertAlmostEqual(observed[1], 0.04)
+        self.assertEqual(self.fake.process.wait_timeouts, [5])
+        self.assertFalse(self.fake.present)

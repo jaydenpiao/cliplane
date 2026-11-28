@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts/decoder"))
 from artifact_protocol import MAX_MANIFEST_BYTES, BundleError, write_bundle
 from decoder import MAX_REQUEST_BYTES, read_request
-from decoder_container import DecoderExit
+from decoder_container import DecoderCancelled, DecoderExit
 from pipeline import PROBE_INPUT_REJECTED
 from probe_transport import ProbeUnsupported
 from runner_executor import DecoderExecutor
@@ -33,6 +33,7 @@ class RunnerExecutorTests(unittest.TestCase):
         self.output = self.root / "decoder-output"
         self.output.mkdir()
         self.calls = []
+        self.cancellations = []
 
     def bundle(self, operation, result, files):
         for name, content in files.items():
@@ -43,8 +44,9 @@ class RunnerExecutorTests(unittest.TestCase):
 
     def backend(self, output, failure=None):
         @contextmanager
-        def attach(image, source, encoded):
+        def attach(image, source, encoded, *, cancelled=None):
             self.calls.append((image, source, read_request(io.BytesIO(encoded))))
+            self.cancellations.append(cancelled)
             with io.BytesIO(output) as stdout:
                 yield SimpleNamespace(stdout=stdout)
             if failure:
@@ -147,3 +149,25 @@ class RunnerExecutorTests(unittest.TestCase):
         with self.backend(output), self.assertRaises(FileExistsError):
             DecoderExecutor(IMAGE).render(self.source, self.destination, RENDER_REQUEST)
         self.assertEqual(existing.read_bytes(), b"keep")
+
+    def test_all_operations_forward_cancellation_and_discard_cancelled_attempts(self):
+        def disconnected() -> bool:
+            return True
+
+        executor = DecoderExecutor(IMAGE)
+        with self.backend(b"", DecoderCancelled()), self.assertRaises(DecoderCancelled):
+            executor.probe(self.source, cancelled=disconnected)
+
+        analysis_bundle = self.bundle(
+            "analyze", {"candidates": []}, {"proxy.mp4": b"proxy", "poster.jpg": b"poster"}
+        )
+        with self.backend(analysis_bundle, DecoderCancelled()), self.assertRaises(DecoderCancelled):
+            executor.analyze(self.source, self.destination, cancelled=disconnected)
+        self.assertFalse(self.destination.exists())
+
+        render_bundle = self.bundle("render", {}, {"render.mp4": b"render"})
+        with self.backend(render_bundle, DecoderCancelled()), self.assertRaises(DecoderCancelled):
+            executor.render(self.source, self.destination, RENDER_REQUEST, cancelled=disconnected)
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(self.cancellations, [disconnected] * 3)
+        self.assertEqual(list(self.input.iterdir()), [self.source])

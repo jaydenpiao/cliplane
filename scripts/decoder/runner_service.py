@@ -1,6 +1,7 @@
 """Serve fixed private decoder operations with one active connection."""
 
 import os
+import select
 import socket
 import stat
 from collections.abc import Callable
@@ -38,9 +39,9 @@ def serve_runner(
     staging_root: Path,
     allowed_uid: int,
     *,
-    execute_probe: Callable[[Path], dict],
-    execute_analysis: Callable[[Path, Path], dict],
-    execute_render: Callable[[Path, Path, dict], dict],
+    execute_probe: Callable[[Path, Callable[[], bool]], dict],
+    execute_analysis: Callable[[Path, Path, Callable[[], bool]], dict],
+    execute_render: Callable[[Path, Path, dict, Callable[[], bool]], dict],
     stop: Event,
     ready: Event,
 ) -> None:
@@ -48,7 +49,8 @@ def serve_runner(
 
     The caller supplies trusted roots and separate lifecycle events. The ready
     event covers the serving scope after startup. Operation handlers keep their
-    wire deadlines and the trusted callbacks bound and clean up decoder work.
+    wire deadlines. Trusted callbacks receive a predicate for their peer's
+    disconnect and use it to clean up decoder work. Stop drains active work.
     """
     ready.clear()
     if type(allowed_uid) is not int or not 0 <= allowed_uid <= _MAX_UID:
@@ -57,18 +59,41 @@ def serve_runner(
     if stop.is_set():
         return
 
-    def dispatch(connection: socket.socket, *, handler: Callable[[socket.socket], None]) -> None:
+    def dispatch(
+        connection: socket.socket, *, handler: Callable[[socket.socket, Callable[[], bool]], None]
+    ) -> None:
         # Stop may have been set while accepting and authenticating this connection.
-        if not stop.is_set():
-            handler(connection)
+        if stop.is_set():
+            return
+        peer = select.poll()
+        # A write half-close marks read EOF but leaves the response direction open.
+        failure_events = select.POLLHUP | select.POLLERR | select.POLLNVAL
+        peer.register(connection, failure_events)
+
+        def cancelled() -> bool:
+            return any(events & failure_events for _, events in peer.poll(0))
+
+        handler(connection, cancelled)
+
+    def probe(connection: socket.socket, cancelled: Callable[[], bool]) -> None:
+        serve_probe(connection, staging_root, lambda source: execute_probe(source, cancelled))
+
+    def analyze(connection: socket.socket, cancelled: Callable[[], bool]) -> None:
+        serve_analysis(
+            connection, staging_root, lambda source, output: execute_analysis(source, output, cancelled)
+        )
+
+    def render(connection: socket.socket, cancelled: Callable[[], bool]) -> None:
+        serve_render(
+            connection,
+            staging_root,
+            lambda source, output, request: execute_render(source, output, request, cancelled),
+        )
 
     endpoints = (
-        ("probe.sock", partial(serve_probe, staging_root=staging_root, execute_probe=execute_probe)),
-        (
-            "analyze.sock",
-            partial(serve_analysis, staging_root=staging_root, execute_analysis=execute_analysis),
-        ),
-        ("render.sock", partial(serve_render, staging_root=staging_root, execute_render=execute_render)),
+        ("probe.sock", probe),
+        ("analyze.sock", analyze),
+        ("render.sock", render),
     )
     with ExitStack() as resources:
         selector = resources.enter_context(DefaultSelector())

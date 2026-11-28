@@ -5,6 +5,7 @@ import stat
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor, wait
 from contextlib import contextmanager
@@ -61,18 +62,21 @@ class RunnerServiceTests(unittest.TestCase):
         self.staging.mkdir(mode=0o700)
         self.calls = []
 
-    def execute_probe(self, source):
+    def execute_probe(self, source, cancelled):
+        self.assertFalse(cancelled(), "a write half-close must not cancel the probe")
         self.calls.append(("probe", source.read_bytes()))
         return METADATA
 
-    def execute_analysis(self, source, output):
+    def execute_analysis(self, source, output, cancelled):
+        self.assertFalse(cancelled(), "a write half-close must not cancel analysis")
         self.calls.append(("analyze", source.read_bytes()))
         output.mkdir()
         (output / "proxy.mp4").write_bytes(b"proxy bytes")
         (output / "poster.jpg").write_bytes(b"poster bytes")
         return {"metadata": METADATA, "candidates": []}
 
-    def execute_render(self, source, output, request):
+    def execute_render(self, source, output, request, cancelled):
+        self.assertFalse(cancelled(), "a write half-close must not cancel rendering")
         self.calls.append(("render", source.read_bytes(), request))
         output.mkdir()
         (output / "render.mp4").write_bytes(b"render bytes")
@@ -184,11 +188,11 @@ class RunnerServiceTests(unittest.TestCase):
         active = threading.Event()
         release = threading.Event()
 
-        def hold_probe(source):
+        def hold_probe(source, cancelled):
             active.set()
             if not release.wait(timeout=2):
                 raise TimeoutError("test backend was not released")
-            return self.execute_probe(source)
+            return self.execute_probe(source, cancelled)
 
         with self.running(execute_probe=hold_probe) as (stop, ready, future), self.connect("probe") as probe:
             try:
@@ -215,6 +219,34 @@ class RunnerServiceTests(unittest.TestCase):
         self.assertEqual(self.calls, [("probe", b"active source")])
         self.assertEqual(list(self.staging.iterdir()), [])
         self.assertEqual(list(self.sockets.iterdir()), [])
+
+    def test_full_disconnect_cancels_only_its_active_handler_and_service_remains_usable(self):
+        active, disconnected = threading.Event(), threading.Event()
+
+        def hold_render(_source, output, _request, cancelled):
+            self.assertFalse(cancelled(), "the peer can still receive a reply")
+            output.mkdir()
+            (output / "render.mp4").write_bytes(b"tentative render")
+            active.set()
+            deadline = time.monotonic() + 1
+            while not cancelled():
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("test peer did not disconnect")
+                disconnected.wait(0.01)
+            disconnected.set()
+            raise ValueError("test render cancelled")
+
+        with self.running(execute_render=hold_render):
+            with self.connect("render") as client:
+                send_source(client, b"active render source", RENDER_REQUEST)
+                self.assertTrue(active.wait(1), "backend must start after the write half-close")
+                self.assertFalse(disconnected.is_set())
+            self.assertTrue(disconnected.wait(1), "closing the peer must cancel active work")
+            with self.connect("probe") as client:
+                send_source(client, b"probe after disconnect")
+                self.assertEqual(read_probe(client), {"status": "ok", "metadata": METADATA})
+            self.assertEqual(list(self.staging.iterdir()), [])
+        self.assertEqual(self.calls, [("probe", b"probe after disconnect")])
 
     def test_idle_stop_finishes_without_waiting_for_a_client(self):
         with self.running() as (stop, ready, future):

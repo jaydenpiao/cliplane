@@ -4,6 +4,7 @@ import io
 import json
 import shutil
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,10 +29,10 @@ class DecoderExecutor:
         if not IMAGE_ID.fullmatch(self.image):
             raise ValueError("Expected a full decoder image ID")
 
-    def probe(self, source: Path) -> dict:
+    def probe(self, source: Path, *, cancelled: Callable[[], bool] | None = None) -> dict:
         output: bytes | None = None
         try:
-            with container_stream(self.image, source, PROBE_REQUEST) as decoder:
+            with container_stream(self.image, source, PROBE_REQUEST, cancelled=cancelled) as decoder:
                 output = decoder.stdout.read(MAX_PROBE_BUNDLE_BYTES + 1)
                 if len(output) > MAX_PROBE_BUNDLE_BYTES:
                     raise BundleError("Probe bundle exceeds the byte limit")
@@ -45,10 +46,19 @@ class DecoderExecutor:
         with tempfile.TemporaryDirectory(prefix="probe-reply-", dir=source.parent) as scratch:
             return read_bundle(io.BytesIO(output), Path(scratch) / "bundle", "probe")
 
-    def analyze(self, source: Path, destination: Path) -> dict:
-        return self._import_artifacts(source, destination, ANALYSIS_REQUEST, "analyze")
+    def analyze(
+        self, source: Path, destination: Path, *, cancelled: Callable[[], bool] | None = None
+    ) -> dict:
+        return self._import_artifacts(source, destination, ANALYSIS_REQUEST, "analyze", cancelled)
 
-    def render(self, source: Path, destination: Path, request: dict) -> dict:
+    def render(
+        self,
+        source: Path,
+        destination: Path,
+        request: dict,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> dict:
         try:
             encoded = json.dumps(request, allow_nan=False, ensure_ascii=False, separators=(",", ":")).encode(
                 "utf-8"
@@ -57,12 +67,19 @@ class DecoderExecutor:
             raise BundleError("Invalid decoder request") from None
         if read_request(io.BytesIO(encoded))["operation"] != "render":
             raise BundleError("Expected a render request")
-        return self._import_artifacts(source, destination, encoded, "render")
+        return self._import_artifacts(source, destination, encoded, "render", cancelled)
 
-    def _import_artifacts(self, source: Path, destination: Path, request: bytes, operation: str) -> dict:
+    def _import_artifacts(
+        self,
+        source: Path,
+        destination: Path,
+        request: bytes,
+        operation: str,
+        cancelled: Callable[[], bool] | None,
+    ) -> dict:
         imported = False
         try:
-            with container_stream(self.image, source, request) as decoder:
+            with container_stream(self.image, source, request, cancelled=cancelled) as decoder:
                 result = read_bundle(decoder.stdout, destination, operation)
                 imported = True
             return result
