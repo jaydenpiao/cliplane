@@ -38,7 +38,9 @@ target TLS verification remains open in [#28](https://github.com/jaydenpiao/clip
   container cancellation. Upload probing and jobs now share an explicitly selected
   executor. The hosted smoke connects all three TypeScript clients to the
   UID-checked private runner loop and imports real output bundles into private
-  scratch. Complete deployment wiring, executor integration and active cancellation.
+  scratch. The runner executor owns fixed decoder requests and verified
+  container cleanup. Complete deployment wiring, API integration and active
+  cancellation.
   Qualify the production runtime and workload profile before selecting the
   isolated backend.
 - Add [durable resumable ingest #3](https://github.com/jaydenpiao/cliplane/issues/3) and
