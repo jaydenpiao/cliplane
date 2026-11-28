@@ -145,6 +145,14 @@ created by that invocation. Hosted smoke exercises all three TypeScript
 clients through the loop with an actual isolated decoder, verifies a rejected
 UID and checks endpoint and staging cleanup.
 
+The runner executor accepts a configured immutable image ID and runs only the
+fixed probe, analyze and render requests. Its container code checks the
+image, identity and runner ownership label before removal. A source bind uses
+one regular file from trusted staging. The executor validates the returned
+bundle and waits for successful decoder exit and verified container cleanup
+before returning. If either step fails after import, the executor removes its
+private output. The runner process holds Docker authority.
+
 Deployment configuration, app selection and cancellation of already accepted
 decoder work remain open.
 
